@@ -1,16 +1,23 @@
 import SwiftUI
 
-// 更新 AddTrainingSetView
 struct AddTrainingSetView: View {
     @ObservedObject var dataManager: DataManager
     @State private var selectedEquipment: Equipment?
-    @State private var reps = 1
-    @State private var weight = 0.0
+    @State private var reps: Int
+    @State private var weight: Double?
     @State private var time = Date()
     @State private var showAlert = false
     @State private var alertMessage = ""
     let date: Date
     @Environment(\.presentationMode) var presentationMode
+    
+    init(dataManager: DataManager, date: Date) {
+        self.dataManager = dataManager
+        self.date = date
+        
+        let savedReps = UserDefaults.standard.integer(forKey: "lastEditedReps")
+        _reps = State(initialValue: savedReps > 0 ? savedReps : 12)
+    }
     
     var body: some View {
         NavigationView {
@@ -25,6 +32,9 @@ struct AddTrainingSetView: View {
                 }
                 
                 Stepper("重複次數: \(reps)", value: $reps, in: 1...100)
+                    .onChange(of: reps) { _, newValue in
+                        UserDefaults.standard.set(newValue, forKey: "lastEditedReps")
+                    }
                 
                 HStack {
                     Text("重量")
@@ -52,7 +62,7 @@ struct AddTrainingSetView: View {
             return false
         }
         
-        guard weight > 0 else {
+        guard let weight = weight, weight > 0 else {
             alertMessage = "請輸入有效的重量"
             return false
         }
@@ -61,9 +71,9 @@ struct AddTrainingSetView: View {
     }
     
     private func saveTrainingSet() {
-        guard let equipment = selectedEquipment else { return }
+        guard let equipment = selectedEquipment, let weight = weight else { return }
         
-        let newSet = TrainingSet(id: UUID(), equipment: equipment, reps: reps, weight: weight)
+        let newSet = TrainingSet(id: UUID(), equipment: equipment, reps: reps, weight: weight, time: time)
         
         if let index = dataManager.trainingLogs.firstIndex(where: { Calendar.current.isDate($0.date, inSameDayAs: date) }) {
             dataManager.trainingLogs[index].sets.append(newSet)
@@ -74,5 +84,4 @@ struct AddTrainingSetView: View {
         
         presentationMode.wrappedValue.dismiss()
     }
-
 }

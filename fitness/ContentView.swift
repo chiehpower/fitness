@@ -43,7 +43,7 @@ struct WelcomeView: View {
 
                 Spacer()
 
-                Text("© 2024 Chieh Tsai All Rights Reserved")
+                Text("© 2024 Chieh All Rights Reserved")
                     .font(.system(size: 12))
                     .foregroundColor(.gray)
                     .padding(.bottom, 20)

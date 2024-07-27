@@ -30,6 +30,7 @@ struct TrainingSet: Identifiable, Codable {
     var equipment: Equipment
     var reps: Int
     var weight: Double
+    var time: Date  // 新添加的屬性
 }
 
 struct TrainingLog: Identifiable, Codable {
