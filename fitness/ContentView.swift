@@ -80,8 +80,8 @@ struct ContentView: View {
                 TabView(selection: $selection) {
                     TrainingLogView(dataManager: dataManager)
                     .tabItem {
-                        Image(systemName: "dumbbell.fill")
-                        Text("紀錄")
+                        Image(systemName: "calendar")
+                        Text("運動")
                     }
                     .tag(0)
                     
@@ -102,7 +102,11 @@ struct ContentView: View {
                                 Image(systemName: "ellipsis.circle")
                             })
                     }
-
+                    .tabItem {
+                        Image(systemName: "dumbbell.fill")
+                        Text("器材")
+                    }
+                    .tag(1)
 
                     Text("設定").tabItem { 
                         Image(systemName: "gearshape.fill") 
