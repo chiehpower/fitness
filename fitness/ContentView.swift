@@ -32,18 +32,18 @@ struct WelcomeView: View {
                         .stroke(Color.gray, lineWidth: 0.5)
                 )
 
-                Text("Your Personal Fitness Recorder.")
+                Text("Your Personal Fitness Recorder")
                     .font(.system(size: 18, weight: .bold, design: .rounded))
                     .padding(.top, 50)
 
                 
-                Text("Document your fitness journey.")
+                Text("Enjoy your fitness journey")
                     .font(.subheadline)
                     .padding(.top, 5)
 
                 Spacer()
 
-                Text("Made by Chieh.")
+                Text("© 2024 Chieh Tsai All Rights Reserved")
                     .font(.system(size: 12))
                     .foregroundColor(.gray)
                     .padding(.bottom, 20)
@@ -56,7 +56,7 @@ struct WelcomeView: View {
             }
             
             // 3秒后自动跳转到主页面
-            DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
                 withAnimation {
                     self.isWelcomeActive = false
                 }
@@ -78,6 +78,13 @@ struct ContentView: View {
                 WelcomeView(isWelcomeActive: $isWelcomeActive)
             } else {
                 TabView(selection: $selection) {
+                    TrainingLogView(dataManager: dataManager)
+                    .tabItem {
+                        Image(systemName: "dumbbell.fill")
+                        Text("紀錄")
+                    }
+                    .tag(0)
+                    
                     NavigationView {
                         EquipmentListView(equipments: $dataManager.equipments)
                             .navigationTitle("健身器材")
@@ -95,28 +102,17 @@ struct ContentView: View {
                                 Image(systemName: "ellipsis.circle")
                             })
                     }
-                    .tabItem {
-                        Image(systemName: "dumbbell.fill")
-                        Text("器材")
-                    }
-                    .tag(0)
 
-                    TrainingLogView(dataManager: dataManager)
-                    .tabItem {
-                        Image(systemName: "book.fill")
-                        Text("紀錄")
-                    }
-                    .tag(1)
 
                     Text("設定").tabItem { 
                         Image(systemName: "gearshape.fill") 
                         Text("設定") 
                     }.tag(2)
                     
-                    Text("計時").tabItem { 
-                        Image(systemName: "timer") 
-                        Text("計時") 
-                    }.tag(3)
+//                    Text("計時").tabItem { 
+//                        Image(systemName: "timer") 
+//                        Text("計時") 
+//                    }.tag(3)
                 }
                 .sheet(isPresented: $showingAddEquipment) {
                     AddEquipmentView(equipments: $dataManager.equipments, muscles: dataManager.muscles)
