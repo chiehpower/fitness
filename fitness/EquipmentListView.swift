@@ -1,41 +1,81 @@
+import SwiftUI
+
 // 器材列表視圖
-struct EquipmentListView: View {
+public struct EquipmentListView: View {
     @Binding var equipments: [Equipment]
+    @State private var selectedImage: UIImage?
+    @State private var isShowingEnlargedImage = false
     
-    var body: some View {
+    public var body: some View {
         List {
-            Section(header:
+            ForEach(equipments) { equipment in
+                HStack {
+                    if let imageName = equipment.imageName, let uiImage = loadImage(named: imageName) {
+                        Image(uiImage: uiImage)
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 50, height: 50)
+                            .cornerRadius(5)
+                            .onTapGesture {
+                                self.selectedImage = uiImage
+                                self.isShowingEnlargedImage = true
+                            }
+                    } else {
+                        Image(systemName: "photo")
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 50, height: 50)
+                            .foregroundColor(.gray)
+                    }
+                    
+                    VStack(alignment: .leading) {
+                        Text(equipment.name)
+                            .font(.headline)
                         HStack {
-                            Text("ID").frame(width: 50)
-                            Text("名稱").frame(width: 80)
-                            Text("部位").frame(width: 60)
-                            Text("細部位").frame(width: 60)
-                            Text("圖片")
-                        }
-            ) {
-                ForEach(equipments) { equipment in
-                    HStack {
-                        Text(equipment.id.uuidString.prefix(8)).frame(width: 50)
-                        Text(equipment.name).frame(width: 80)
-                        Text(equipment.mainMuscle).frame(width: 60)
-                        Text(equipment.subMuscle).frame(width: 60)
-                        if let imageName = equipment.imageName, let uiImage = UIImage(named: imageName) {
-                            Image(uiImage: uiImage)
-                                .resizable()
-                                .scaledToFit()
-                                .frame(width: 50, height: 50)
-                        } else {
-                            Image(systemName: "photo")
-                                .frame(width: 50, height: 50)
+                            Text(equipment.mainMuscle)
+                                .font(.subheadline)
+                                .padding(5)
+                                .background(colorForMuscle(equipment.mainMuscle))
+                                .cornerRadius(5)
+                            Text(equipment.subMuscle)
+                                .font(.subheadline)
+                                .padding(5)
+                                .background(colorForMuscle(equipment.mainMuscle).opacity(0.5))
+                                .cornerRadius(5)
                         }
                     }
                 }
-                .onDelete(perform: deleteEquipment)
+                .padding(.vertical, 5)
+            }
+            .onDelete(perform: deleteEquipment)
+        }
+        .sheet(isPresented: $isShowingEnlargedImage) {
+            if let image = selectedImage {
+                EnlargedImageView(image: image)
             }
         }
     }
     
     func deleteEquipment(at offsets: IndexSet) {
         equipments.remove(atOffsets: offsets)
+    }
+    
+    func loadImage(named: String) -> UIImage? {
+        let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first
+        guard let filePath = documentsDirectory?.appendingPathComponent(named).path else {
+            return nil
+        }
+        return UIImage(contentsOfFile: filePath)
+    }
+    
+    func colorForMuscle(_ muscle: String) -> Color {
+        switch muscle {
+        case "胸": return .red
+        case "背": return .blue
+        case "腿": return .green
+        case "肩": return .orange
+        case "手臂": return .purple
+        default: return .gray
+        }
     }
 }

@@ -1,3 +1,5 @@
+import SwiftUI
+
 // 管理部位視圖
 struct ManageMusclesView: View {
     @Binding var muscles: [Muscle]
@@ -11,7 +13,7 @@ struct ManageMusclesView: View {
                         TextField("部位名稱", text: $newMuscleName)
                         Button("新增") {
                             if !newMuscleName.isEmpty {
-                                muscles.append(Muscle(name: newMuscleName, subMuscles: []))
+                                muscles.append(Muscle(id: UUID(), name: newMuscleName, subMuscles: []))
                                 newMuscleName = ""
                             }
                         }

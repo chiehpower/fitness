@@ -1,3 +1,5 @@
+import SwiftUI
+
 // 管理細部位視圖
 struct ManageSubMusclesView: View {
     @Binding var muscles: [Muscle]
