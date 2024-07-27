@@ -8,8 +8,14 @@ struct AddTrainingSetView: View {
     @State private var time = Date()
     @State private var showAlert = false
     @State private var alertMessage = ""
+    @State private var weightUnit: WeightUnit
     let date: Date
     @Environment(\.presentationMode) var presentationMode
+    
+    enum WeightUnit: String, CaseIterable {
+        case kg = "公斤"
+        case lb = "磅"
+    }
     
     init(dataManager: DataManager, date: Date) {
         self.dataManager = dataManager
@@ -17,6 +23,9 @@ struct AddTrainingSetView: View {
         
         let savedReps = UserDefaults.standard.integer(forKey: "lastEditedReps")
         _reps = State(initialValue: savedReps > 0 ? savedReps : 12)
+        
+        let savedUnit = UserDefaults.standard.string(forKey: "lastUsedWeightUnit") ?? WeightUnit.kg.rawValue
+        _weightUnit = State(initialValue: WeightUnit(rawValue: savedUnit) ?? .kg)
     }
     
     var body: some View {
@@ -38,8 +47,18 @@ struct AddTrainingSetView: View {
                 
                 HStack {
                     Text("重量")
-                    TextField("公斤", value: $weight, format: .number)
+                    TextField("輸入重量", value: $weight, format: .number)
                         .keyboardType(.decimalPad)
+                    Picker("單位", selection: $weightUnit) {
+                        ForEach(WeightUnit.allCases, id: \.self) { unit in
+                            Text(unit.rawValue).tag(unit)
+                        }
+                    }
+                    .pickerStyle(SegmentedPickerStyle())
+                    .frame(width: 100)
+                }
+                .onChange(of: weightUnit) { _, newValue in
+                    UserDefaults.standard.set(newValue.rawValue, forKey: "lastUsedWeightUnit")
                 }
             }
             .navigationTitle("新增訓練組")
@@ -73,7 +92,14 @@ struct AddTrainingSetView: View {
     private func saveTrainingSet() {
         guard let equipment = selectedEquipment, let weight = weight else { return }
         
-        let newSet = TrainingSet(id: UUID(), equipment: equipment, reps: reps, weight: weight, time: time)
+        let weightInKg: Double
+        if weightUnit == .lb {
+            weightInKg = weight * 0.453592 // 將磅轉換為公斤
+        } else {
+            weightInKg = weight
+        }
+        
+        let newSet = TrainingSet(id: UUID(), equipment: equipment, reps: reps, weight: weightInKg, time: time)
         
         if let index = dataManager.trainingLogs.firstIndex(where: { Calendar.current.isDate($0.date, inSameDayAs: date) }) {
             dataManager.trainingLogs[index].sets.append(newSet)

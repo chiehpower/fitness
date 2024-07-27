@@ -90,13 +90,13 @@ struct ContentView: View {
                             .navigationTitle("健身器材")
                             .navigationBarItems(trailing: Menu {
                                 Button("新增器材") {
-                                    // 处理新增器材的逻辑
+                                    showingAddEquipment = true
                                 }
                                 Button("管理部位") {
-                                    // 处理管理部位的逻辑
+                                    showingManageMuscles = true
                                 }
                                 Button("管理細部位") {
-                                    // 处理管理细部位的逻辑
+                                    showingManageSubMuscles = true
                                 }
                             } label: {
                                 Image(systemName: "ellipsis.circle")
