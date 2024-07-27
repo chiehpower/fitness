@@ -56,12 +56,12 @@ struct TrainingLogView: View {
                     }
                 }
                 
-                Button("新增训练组") {
+                Button("新增訓練組") {
                     showingAddSet = true
                 }
                 .padding()
             }
-            .navigationTitle("训练记录")
+            .navigationTitle("訓練記錄")
             .navigationBarItems(trailing: EditButton())
             .sheet(isPresented: $showingAddSet) {
                 AddTrainingSetView(dataManager: dataManager, date: selectedDate)
