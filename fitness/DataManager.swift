@@ -46,7 +46,9 @@ public class DataManager: ObservableObject {
         didSet { saveMuscles() }
     }
     @Published var equipments: [Equipment] {
-        didSet { saveEquipments() }
+        didSet { 
+            saveEquipments()
+        }
     }
     @Published var trainingLogs: [TrainingLog] {
         didSet { saveTrainingLogs() }
@@ -63,16 +65,41 @@ public class DataManager: ObservableObject {
         self.trainingLogs = DataManager.loadTrainingLogs()
         self.preferredWeightUnit = WeightUnit(rawValue: UserDefaults.standard.string(forKey: "preferredWeightUnit") ?? "") ?? .kg
     }
-
+    
+    func updateEquipment(_ updatedEquipment: Equipment) {
+        if let index = equipments.firstIndex(where: { $0.id == updatedEquipment.id }) {
+            equipments[index] = updatedEquipment
+            saveEquipments()
+        }
+    }
+    
+    func deleteEquipment(_ equipment: Equipment) {
+        equipments.removeAll { $0.id == equipment.id }
+        saveEquipments()
+    }
+    
+    func reloadEquipments() async {
+        DispatchQueue.main.async {
+            self.equipments = DataManager.loadEquipments()
+        }
+    }
+    
+    private func saveEquipments() {
+        if let encoded = try? JSONEncoder().encode(equipments) {
+            UserDefaults.standard.set(encoded, forKey: "equipments")
+        }
+    }
+    
+    static func loadEquipments() -> [Equipment] {
+        if let equipmentsData = UserDefaults.standard.data(forKey: "equipments"),
+           let decodedEquipments = try? JSONDecoder().decode([Equipment].self, from: equipmentsData) {
+            return decodedEquipments
+        }
+        return []
+    }
     func saveMuscles() {
         if let encoded = try? JSONEncoder().encode(muscles) {
             UserDefaults.standard.set(encoded, forKey: "muscles")
-        }
-    }
-
-    func saveEquipments() {
-        if let encoded = try? JSONEncoder().encode(equipments) {
-            UserDefaults.standard.set(encoded, forKey: "equipments")
         }
     }
 
@@ -85,14 +112,6 @@ public class DataManager: ObservableObject {
             Muscle(id: UUID(), name: "胸", subMuscles: ["上胸", "中胸", "下胸"]),
             Muscle(id: UUID(), name: "背", subMuscles: ["上背", "下背"])
         ]
-    }
-
-    static func loadEquipments() -> [Equipment] {
-        if let equipmentsData = UserDefaults.standard.data(forKey: "equipments"),
-           let decodedEquipments = try? JSONDecoder().decode([Equipment].self, from: equipmentsData) {
-            return decodedEquipments
-        }
-        return []
     }
 
     func saveTrainingLogs() {

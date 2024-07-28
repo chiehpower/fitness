@@ -4,16 +4,22 @@ struct SettingsView: View {
     @ObservedObject var dataManager: DataManager
     
     var body: some View {
-        Form {
-            Section(header: Text("重量單位偏好")) {
-                Picker("顯示重量單位", selection: $dataManager.preferredWeightUnit) {
-                    Text("公斤").tag(WeightUnit.kg)
-                    Text("磅").tag(WeightUnit.lb)
+        NavigationView {
+            Form {
+                Section(header: Text("重量單位偏好")) {
+                    HStack {
+                        Text("顯示重量單位")
+                        Spacer()
+                        Picker("", selection: $dataManager.preferredWeightUnit) {
+                            Text("公斤").tag(WeightUnit.kg)
+                            Text("磅").tag(WeightUnit.lb)
+                        }
+                        .pickerStyle(MenuPickerStyle())
+                    }
                 }
-                .pickerStyle(SegmentedPickerStyle())
             }
+            .navigationTitle("設定")
         }
-        .navigationTitle("設置")
     }
 }
 

@@ -86,7 +86,7 @@ struct ContentView: View {
                     .tag(0)
                     
                     NavigationView {
-                        EquipmentListView(equipments: $dataManager.equipments)
+                        EquipmentListView(dataManager: dataManager)
                             .navigationTitle("健身器材")
                             .navigationBarItems(trailing: Menu {
                                 Button("新增器材") {

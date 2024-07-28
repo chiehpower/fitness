@@ -1,14 +1,17 @@
 import SwiftUI
 
+import SwiftUI
+
 public struct EquipmentListView: View {
-    @Binding var equipments: [Equipment]
+    @ObservedObject var dataManager: DataManager
     @State private var selectedImage: UIImage?
     @State private var isShowingEnlargedImage = false
+    @State private var editingEquipment: Equipment?
     
     public var body: some View {
         ScrollView {
             LazyVGrid(columns: [GridItem(.flexible())], spacing: 20) {
-                ForEach(equipments) { equipment in
+                ForEach(dataManager.equipments) { equipment in
                     EquipmentCard(equipment: equipment)
                         .onTapGesture {
                             if let imageName = equipment.imageName,
@@ -17,15 +20,42 @@ public struct EquipmentListView: View {
                                 self.isShowingEnlargedImage = true
                             }
                         }
+                        .contextMenu {
+                            Button(action: {
+                                editingEquipment = equipment
+                            }) {
+                                Text("編輯")
+                                Image(systemName: "pencil")
+                            }
+                            
+                            Button(action: {
+                                deleteEquipment(equipment)
+                            }) {
+                                Text("刪除")
+                                Image(systemName: "trash")
+                            }
+                        }
                 }
             }
             .padding()
+        }
+        .refreshable {
+            await refreshData()
         }
         .sheet(isPresented: $isShowingEnlargedImage) {
             if let image = selectedImage {
                 EnlargedImageView(image: image)
             }
         }
+        .sheet(item: $editingEquipment) { equipment in
+            NavigationView {
+                EditEquipmentView(dataManager: dataManager, equipment: equipment)
+            }
+        }
+    }
+    
+    private func deleteEquipment(_ equipment: Equipment) {
+        dataManager.deleteEquipment(equipment)
     }
     
     private func loadImage(named: String) -> UIImage? {
@@ -35,8 +65,11 @@ public struct EquipmentListView: View {
         }
         return UIImage(contentsOfFile: filePath)
     }
+    
+    private func refreshData() async {
+        await dataManager.reloadEquipments()
+    }
 }
-
 struct EquipmentCard: View {
     let equipment: Equipment
     
