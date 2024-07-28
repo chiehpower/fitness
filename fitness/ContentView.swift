@@ -113,11 +113,6 @@ struct ContentView: View {
                         Image(systemName: "gearshape.fill") 
                         Text("設定") 
                     }.tag(2)
-                    
-//                    Text("計時").tabItem { 
-//                        Image(systemName: "timer") 
-//                        Text("計時") 
-//                    }.tag(3)
                 }
                 .sheet(isPresented: $showingAddEquipment) {
                     AddEquipmentView(equipments: $dataManager.equipments, muscles: dataManager.muscles)
@@ -128,7 +123,6 @@ struct ContentView: View {
                 .sheet(isPresented: $showingManageSubMuscles) {
                     ManageSubMusclesView(muscles: $dataManager.muscles)
                 }
-
             }
         }
         .animation(.easeInOut, value: isWelcomeActive)

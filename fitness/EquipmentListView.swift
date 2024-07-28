@@ -1,53 +1,25 @@
 import SwiftUI
 
-// 器材列表視圖
 public struct EquipmentListView: View {
     @Binding var equipments: [Equipment]
     @State private var selectedImage: UIImage?
     @State private var isShowingEnlargedImage = false
     
     public var body: some View {
-        List {
-            ForEach(equipments) { equipment in
-                HStack {
-                    if let imageName = equipment.imageName, let uiImage = loadImage(named: imageName) {
-                        Image(uiImage: uiImage)
-                            .resizable()
-                            .scaledToFit()
-                            .frame(width: 50, height: 50)
-                            .cornerRadius(5)
-                            .onTapGesture {
+        ScrollView {
+            LazyVGrid(columns: [GridItem(.flexible())], spacing: 20) {
+                ForEach(equipments) { equipment in
+                    EquipmentCard(equipment: equipment)
+                        .onTapGesture {
+                            if let imageName = equipment.imageName,
+                               let uiImage = loadImage(named: imageName) {
                                 self.selectedImage = uiImage
                                 self.isShowingEnlargedImage = true
                             }
-                    } else {
-                        Image(systemName: "photo")
-                            .resizable()
-                            .scaledToFit()
-                            .frame(width: 50, height: 50)
-                            .foregroundColor(.gray)
-                    }
-                    
-                    VStack(alignment: .leading) {
-                        Text(equipment.name)
-                            .font(.headline)
-                        HStack {
-                            Text(equipment.mainMuscle)
-                                .font(.subheadline)
-                                .padding(5)
-                                .background(colorForMuscle(equipment.mainMuscle))
-                                .cornerRadius(5)
-                            Text(equipment.subMuscle)
-                                .font(.subheadline)
-                                .padding(5)
-                                .background(colorForMuscle(equipment.mainMuscle).opacity(0.5))
-                                .cornerRadius(5)
                         }
-                    }
                 }
-                .padding(.vertical, 5)
             }
-            .onDelete(perform: deleteEquipment)
+            .padding()
         }
         .sheet(isPresented: $isShowingEnlargedImage) {
             if let image = selectedImage {
@@ -56,11 +28,62 @@ public struct EquipmentListView: View {
         }
     }
     
-    func deleteEquipment(at offsets: IndexSet) {
-        equipments.remove(atOffsets: offsets)
+    private func loadImage(named: String) -> UIImage? {
+        let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first
+        guard let filePath = documentsDirectory?.appendingPathComponent(named).path else {
+            return nil
+        }
+        return UIImage(contentsOfFile: filePath)
+    }
+}
+
+struct EquipmentCard: View {
+    let equipment: Equipment
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            if let imageName = equipment.imageName, let uiImage = loadImage(named: imageName) {
+                Image(uiImage: uiImage)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(height: 200)
+                    .clipped()
+                    .cornerRadius(10)
+            } else {
+                Rectangle()
+                    .fill(Color.gray.opacity(0.3))
+                    .frame(height: 200)
+                    .cornerRadius(10)
+                    .overlay(
+                        Image(systemName: "photo")
+                            .foregroundColor(.gray)
+                            .font(.largeTitle)
+                    )
+            }
+            
+            HStack {
+                Text(equipment.name)
+                    .font(.headline)
+                Spacer()
+                Text(equipment.mainMuscle)
+                    .font(.subheadline)
+                    .padding(5)
+                    .background(colorForMuscle(equipment.mainMuscle))
+                    .cornerRadius(5)
+                Text(equipment.subMuscle)
+                    .font(.subheadline)
+                    .padding(5)
+                    .background(colorForMuscle(equipment.mainMuscle).opacity(0.5))
+                    .cornerRadius(5)
+            }
+        }
+        .padding()
+        .background(Color.white)
+        .cornerRadius(15)
+        .shadow(color: Color.gray.opacity(0.3), radius: 5, x: 0, y: 2)
     }
     
-    func loadImage(named: String) -> UIImage? {
+    private func loadImage(named: String) -> UIImage? {
         let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first
         guard let filePath = documentsDirectory?.appendingPathComponent(named).path else {
             return nil
@@ -68,7 +91,7 @@ public struct EquipmentListView: View {
         return UIImage(contentsOfFile: filePath)
     }
     
-    func colorForMuscle(_ muscle: String) -> Color {
+    private func colorForMuscle(_ muscle: String) -> Color {
         switch muscle {
         case "胸": return .red
         case "背": return .blue

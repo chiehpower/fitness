@@ -9,6 +9,8 @@ struct AddEquipmentView: View {
     @State private var image: UIImage?
     @State private var showingImagePicker = false
     @State private var showingSourceTypeMenu = false
+    @State private var showAlert = false
+    @State private var alertMessage = ""
     @State private var sourceType: UIImagePickerController.SourceType = .photoLibrary
     @Environment(\.presentationMode) var presentationMode
 
@@ -44,8 +46,12 @@ struct AddEquipmentView: View {
             }
             .navigationBarTitle("新增器材", displayMode: .inline)
             .navigationBarItems(trailing: Button("儲存") {
-                saveEquipment()
-            })
+                            if validateInput() {
+                                saveEquipment()
+                            } else {
+                                showAlert = true
+                            }
+                        })
             .actionSheet(isPresented: $showingSourceTypeMenu) {
                 ActionSheet(title: Text("選擇圖片來源"), buttons: [
                     .default(Text("相冊")) {
@@ -62,9 +68,32 @@ struct AddEquipmentView: View {
             .sheet(isPresented: $showingImagePicker) {
                 ImagePicker(image: $image, sourceType: sourceType)
             }
+            .alert(isPresented: $showAlert) {
+                Alert(title: Text("錯誤"), message: Text(alertMessage), dismissButton: .default(Text("確定")))
+            }
         }
     }
 
+    func validateInput() -> Bool {
+        if name.isEmpty {
+            alertMessage = "請輸入器材名稱"
+            return false
+        }
+        if selectedMuscle.isEmpty {
+            alertMessage = "請選擇一個主要部位"
+            return false
+        }
+        if selectedSubMuscle.isEmpty {
+            alertMessage = "請選擇一個細部位"
+            return false
+        }
+        if image == nil {
+            alertMessage = "請上傳器材圖片"
+            return false
+        }
+        return true
+    }
+    
     func saveEquipment() {
         let imageName = saveImage()
         let newEquipment = Equipment(id: UUID(), name: name, mainMuscle: selectedMuscle, subMuscle: selectedSubMuscle, imageName: imageName)
