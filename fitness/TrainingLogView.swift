@@ -29,7 +29,7 @@ struct TrainingLogView: View {
                                             .font(.headline)
                                         Spacer()
                                         Text("\(set.reps) 次")
-                                        Text("\(set.weight, specifier: "%.1f") kg")
+                                        Text("\(formatWeight(set.weight)) \(dataManager.preferredWeightUnit.rawValue)")
                                     }
                                     HStack {
                                         Text(set.equipment.mainMuscle)
@@ -89,6 +89,11 @@ struct TrainingLogView: View {
         formatter.dateFormat = "HH:mm"
         return formatter.string(from: date)
     }
+    private func formatWeight(_ weight: Double) -> String {
+        let convertedWeight = dataManager.convertWeight(weight, to: dataManager.preferredWeightUnit)
+        return String(format: "%.1f", convertedWeight)
+    }
+    
 }
 
 struct CustomDatePicker: View {

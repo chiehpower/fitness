@@ -51,11 +51,17 @@ public class DataManager: ObservableObject {
     @Published var trainingLogs: [TrainingLog] {
         didSet { saveTrainingLogs() }
     }
+    @Published var preferredWeightUnit: WeightUnit {
+        didSet { 
+            UserDefaults.standard.set(preferredWeightUnit.rawValue, forKey: "preferredWeightUnit")
+        }
+    }
 
     init() {
         self.muscles = DataManager.loadMuscles()
         self.equipments = DataManager.loadEquipments()
         self.trainingLogs = DataManager.loadTrainingLogs()
+        self.preferredWeightUnit = WeightUnit(rawValue: UserDefaults.standard.string(forKey: "preferredWeightUnit") ?? "") ?? .kg
     }
 
     func saveMuscles() {
@@ -101,5 +107,14 @@ public class DataManager: ObservableObject {
             return decodedLogs
         }
         return []
+    }
+    
+    func convertWeight(_ weight: Double, to unit: WeightUnit) -> Double {
+        switch unit {
+        case .kg:
+            return weight
+        case .lb:
+            return weight * 2.20462 // 公斤转磅
+        }
     }
 }

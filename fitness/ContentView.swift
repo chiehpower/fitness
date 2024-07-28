@@ -108,7 +108,8 @@ struct ContentView: View {
                     }
                     .tag(1)
 
-                    Text("設定").tabItem { 
+                    SettingsView(dataManager: dataManager)
+                    .tabItem { 
                         Image(systemName: "gearshape.fill") 
                         Text("設定") 
                     }.tag(2)
