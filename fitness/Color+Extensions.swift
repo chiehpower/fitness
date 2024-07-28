@@ -12,3 +12,4 @@ import SwiftUI
 extension Color {
     static let customAccent = Color(red: 163/255, green: 163/255, blue: 153/255)
 }
+    

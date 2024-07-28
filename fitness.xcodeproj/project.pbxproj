@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		BB6FF95B2C5661D70078CE6D /* Color+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB6FF95A2C5661D70078CE6D /* Color+Extensions.swift */; };
 		BB9CCAD32C52877000EC3707 /* EquipmentListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB9CCACD2C52877000EC3707 /* EquipmentListView.swift */; };
 		BB9CCADB2C52886E00EC3707 /* TrainingLogView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB9CCADA2C52886E00EC3707 /* TrainingLogView.swift */; };
 		BB9CCADD2C5288A600EC3707 /* AddTrainingSetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB9CCADC2C5288A600EC3707 /* AddTrainingSetView.swift */; };
@@ -20,9 +21,12 @@
 		BBD90CAC2C4EAF9F004FE536 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBD90CAB2C4EAF9F004FE536 /* ContentView.swift */; };
 		BBD90CAE2C4EAFA1004FE536 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = BBD90CAD2C4EAFA1004FE536 /* Assets.xcassets */; };
 		BBD90CB22C4EAFA1004FE536 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = BBD90CB12C4EAFA1004FE536 /* Preview Assets.xcassets */; };
+		BBF1D4C52C55FF2100F129EB /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBF1D4C42C55FF2100F129EB /* SettingsView.swift */; };
+		BBF1D4CA2C564D5300F129EB /* EditEquipmentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBF1D4C92C564D5300F129EB /* EditEquipmentView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		BB6FF95A2C5661D70078CE6D /* Color+Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Color+Extensions.swift"; sourceTree = "<group>"; };
 		BB9CCACD2C52877000EC3707 /* EquipmentListView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = EquipmentListView.swift; sourceTree = "<group>"; };
 		BB9CCAD82C52881E00EC3707 /* DataManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataManager.swift; sourceTree = "<group>"; };
 		BB9CCADA2C52886E00EC3707 /* TrainingLogView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrainingLogView.swift; sourceTree = "<group>"; };
@@ -38,6 +42,9 @@
 		BBD90CAD2C4EAFA1004FE536 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		BBD90CAF2C4EAFA1004FE536 /* fitness.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = fitness.entitlements; sourceTree = "<group>"; };
 		BBD90CB12C4EAFA1004FE536 /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
+		BBF1D4C42C55FF2100F129EB /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		BBF1D4C82C56399A00F129EB /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		BBF1D4C92C564D5300F129EB /* EditEquipmentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditEquipmentView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -70,6 +77,7 @@
 		BBD90CA82C4EAF9F004FE536 /* fitness */ = {
 			isa = PBXGroup;
 			children = (
+				BBF1D4C82C56399A00F129EB /* Info.plist */,
 				BB9CCADE2C5288FD00EC3707 /* EnlargedImageView.swift */,
 				BB9CCAE62C52898D00EC3707 /* ManageSubMusclesView.swift */,
 				BB9CCAE42C52896E00EC3707 /* ManageMusclesView.swift */,
@@ -77,10 +85,13 @@
 				BB9CCAE02C52892200EC3707 /* AddEquipmentView.swift */,
 				BB9CCADC2C5288A600EC3707 /* AddTrainingSetView.swift */,
 				BB9CCADA2C52886E00EC3707 /* TrainingLogView.swift */,
+				BBF1D4C92C564D5300F129EB /* EditEquipmentView.swift */,
 				BB9CCACD2C52877000EC3707 /* EquipmentListView.swift */,
 				BB9CCAD82C52881E00EC3707 /* DataManager.swift */,
+				BB6FF95A2C5661D70078CE6D /* Color+Extensions.swift */,
 				BBD90CA92C4EAF9F004FE536 /* fitnessApp.swift */,
 				BBD90CAB2C4EAF9F004FE536 /* ContentView.swift */,
+				BBF1D4C42C55FF2100F129EB /* SettingsView.swift */,
 				BBD90CAD2C4EAFA1004FE536 /* Assets.xcassets */,
 				BBD90CAF2C4EAFA1004FE536 /* fitness.entitlements */,
 				BBD90CB02C4EAFA1004FE536 /* Preview Content */,
@@ -174,7 +185,10 @@
 				BB9CCAD32C52877000EC3707 /* EquipmentListView.swift in Sources */,
 				BB9CCAE12C52892200EC3707 /* AddEquipmentView.swift in Sources */,
 				BBD90CAC2C4EAF9F004FE536 /* ContentView.swift in Sources */,
+				BBF1D4CA2C564D5300F129EB /* EditEquipmentView.swift in Sources */,
 				BB9CCAE82C52913F00EC3707 /* DataManager.swift in Sources */,
+				BBF1D4C52C55FF2100F129EB /* SettingsView.swift in Sources */,
+				BB6FF95B2C5661D70078CE6D /* Color+Extensions.swift in Sources */,
 				BB9CCAE72C52898D00EC3707 /* ManageSubMusclesView.swift in Sources */,
 				BBD90CAA2C4EAF9F004FE536 /* fitnessApp.swift in Sources */,
 			);
@@ -313,6 +327,7 @@
 				DEVELOPMENT_TEAM = W5Q4S8G9K7;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = fitness/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Fitness;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
@@ -353,6 +368,7 @@
 				DEVELOPMENT_TEAM = W5Q4S8G9K7;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = fitness/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Fitness;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;

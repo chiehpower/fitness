@@ -31,48 +31,80 @@ struct AddTrainingSetView: View {
     var body: some View {
         NavigationView {
             VStack(spacing: 0) {
-                Form {
-                    DatePicker("時間", selection: $time, displayedComponents: .hourAndMinute)
-                    
-                    Picker("器材", selection: $selectedEquipment) {
-                        Text("選擇器材").tag(nil as Equipment?)
-                        ForEach(dataManager.equipments) { equipment in
-                            Text(equipment.name).tag(equipment as Equipment?)
-                        }
+               VStack(spacing: 20) {
+                    customRow(title: "時間") {
+                        DatePicker("", selection: $time, displayedComponents: .hourAndMinute)
+                            .labelsHidden()
                     }
                     
-                    Stepper("重複次數: \(reps)", value: $reps, in: 1...100)
+                    customRow(title: "器材") {
+                        Picker("", selection: $selectedEquipment) {
+                            Text("選擇器材").tag(nil as Equipment?)
+                            ForEach(dataManager.equipments) { equipment in
+                                Text(equipment.name).tag(equipment as Equipment?)
+                            }
+                        }
+                        .labelsHidden()
+                    }
+                    
+                    customRow(title: "重複次數") {
+                        HStack {
+                            Spacer()
+                            Text("\(reps)")
+                                .font(.system(size: 24, weight: .bold)) // 增大字體大小
+                                .frame(minWidth: 50) // 稍微增加最小寬度
+                            Spacer()
+                            Stepper("", value: $reps, in: 1...100)
+                                .labelsHidden()
+                        }
                         .onChange(of: reps) { _, newValue in
                             UserDefaults.standard.set(newValue, forKey: "lastEditedReps")
                         }
-                    
-                    Picker("重量單位", selection: $weightUnit) {
-                        ForEach(WeightUnit.allCases, id: \.self) { unit in
-                            Text(unit.rawValue).tag(unit)
+                    }
+                    customRow(title: "重量單位") {
+                        Picker("", selection: $weightUnit) {
+                            ForEach(WeightUnit.allCases, id: \.self) { unit in
+                                Text(unit.rawValue).tag(unit)
+                            }
+                        }
+                        .pickerStyle(SegmentedPickerStyle())
+                        .onChange(of: weightUnit) { _, newValue in
+                            UserDefaults.standard.set(newValue.rawValue, forKey: "lastUsedWeightUnit")
                         }
                     }
-                    .pickerStyle(SegmentedPickerStyle())
-                    .onChange(of: weightUnit) { _, newValue in
-                        UserDefaults.standard.set(newValue.rawValue, forKey: "lastUsedWeightUnit")
-                    }
                 }
-                
-                VStack(spacing: 0) {
-                    Text("重量")
-                        .font(.headline)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.horizontal)
-                        .padding(.top, 10)
-                    
-                    Text("\(weight) \(weightUnit.rawValue)")
-                        .font(.system(size: 40, weight: .medium))
-                        .frame(maxWidth: .infinity, alignment: .trailing)
-                        .padding(.horizontal)
-                        .padding(.bottom, 10)
-                    
-                    CustomNumberPad(value: $weight)
-                }
+                .padding(.vertical)
                 .background(Color(UIColor.secondarySystemBackground))
+
+                
+            VStack(spacing: 5) {
+
+                Text("重量")
+                    .font(.system(size: 50, weight: .bold))
+                    .kerning(1.2)
+                    .shadow(color: .gray.opacity(0.3), radius: 5, x: 1, y: 1)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal)
+                    .offset(y: 12)  // 正值會將文本往下移動
+
+                            
+                HStack(alignment: .lastTextBaseline) {
+                    Text("\(weight)")
+                        .font(.system(size: 70, weight: .medium))
+                        .foregroundColor(.red)
+                        .shadow(color: .gray.opacity(0.5), radius: 5, x: 1, y: 1)
+
+
+                    Text(weightUnit.rawValue)
+                        .font(.system(size: 24, weight: .medium))
+                }
+                .frame(maxWidth: .infinity, alignment: .trailing)
+                .padding(.horizontal)
+                .padding(.bottom, 10)
+                
+                CustomNumberPad(value: $weight)
+            }
+            .background(Color(UIColor.secondarySystemBackground))
             }
             .navigationTitle("新增訓練組")
             .navigationBarItems(trailing: Button("儲存") {
@@ -89,7 +121,18 @@ struct AddTrainingSetView: View {
         .accentColor(.customAccent) // 應用到整個 NavigationView
 
     }
-    
+    private func customRow<Content: View>(title: String, @ViewBuilder content: () -> Content) -> some View {
+        HStack {
+            Text(title)
+                .font(.headline)
+                .foregroundColor(.primary)
+            Spacer()
+            content()
+        }
+        .padding(.horizontal)
+    }
+
+
     private func validateInput() -> Bool {
         guard selectedEquipment != nil else {
             alertMessage = "請選擇一個器材"
