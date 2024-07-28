@@ -72,6 +72,8 @@ struct AddEquipmentView: View {
                 Alert(title: Text("錯誤"), message: Text(alertMessage), dismissButton: .default(Text("確定")))
             }
         }
+        .accentColor(.customAccent) // 應用到整個 ContentView
+
     }
 
     func validateInput() -> Bool {

@@ -126,6 +126,8 @@ struct ContentView: View {
             }
         }
         .animation(.easeInOut, value: isWelcomeActive)
+        .accentColor(.customAccent) // 應用到整個 ContentView
+
     }
 }
 
