@@ -1,14 +1,16 @@
 import SwiftUI
 
-import SwiftUI
-
-public struct EquipmentListView: View {
+struct EquipmentListView: View {
     @ObservedObject var dataManager: DataManager
     @State private var selectedImage: UIImage?
     @State private var isShowingEnlargedImage = false
     @State private var editingEquipment: Equipment?
+    @State private var showingAddEquipment = false
+    @State private var showingManageMuscles = false
+    @State private var showingManageSubMuscles = false
+    @State private var showingManageLocations = false
     
-    public var body: some View {
+    var body: some View {
         ScrollView {
             LazyVGrid(columns: [GridItem(.flexible())], spacing: 20) {
                 ForEach(dataManager.equipments) { equipment in
@@ -52,6 +54,37 @@ public struct EquipmentListView: View {
                 EditEquipmentView(dataManager: dataManager, equipment: equipment)
             }
         }
+        .navigationTitle("健身器材")
+        .navigationBarItems(trailing: Menu {
+            Button("新增器材") {
+                showingAddEquipment = true
+            }
+            Button("管理部位") {
+                showingManageMuscles = true
+            }
+            Button("管理細部位") {
+                showingManageSubMuscles = true
+            }
+            Button("管理地點") {
+                showingManageLocations = true
+            }
+        } label: {
+            Image(systemName: "ellipsis.circle")
+        })
+        .sheet(isPresented: $showingAddEquipment) {
+            AddEquipmentView(dataManager: dataManager)
+        }
+        .sheet(isPresented: $showingManageMuscles) {
+            ManageMusclesView(muscles: $dataManager.muscles)
+        }
+        .sheet(isPresented: $showingManageSubMuscles) {
+            ManageSubMusclesView(muscles: $dataManager.muscles)
+        }
+        .sheet(isPresented: $showingManageLocations) {
+            NavigationView {
+                ManageLocationsView(dataManager: dataManager)
+            }
+        }
     }
     
     private func deleteEquipment(_ equipment: Equipment) {
@@ -67,9 +100,12 @@ public struct EquipmentListView: View {
     }
     
     private func refreshData() async {
-        await dataManager.reloadEquipments()
+        // 使用 dataManager 的實例方法來重新加載數據
+        dataManager.loadEquipments()
     }
 }
+import SwiftUI
+
 struct EquipmentCard: View {
     let equipment: Equipment
     
@@ -108,6 +144,20 @@ struct EquipmentCard: View {
                     .padding(5)
                     .background(colorForMuscle(equipment.mainMuscle).opacity(0.5))
                     .cornerRadius(5)
+            }
+            
+            Text("位置: \(equipment.location)")
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+            
+            if let pr = equipment.pr {
+                Text("個人記錄: \(String(format: "%.1f", pr)) kg")
+                    .font(.subheadline)
+                    .foregroundColor(.green)
+            } else {
+                Text("尚無個人記錄")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
             }
         }
         .padding()

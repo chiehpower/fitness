@@ -6,6 +6,8 @@ struct EditEquipmentView: View {
     @State private var name: String
     @State private var selectedMuscle: String
     @State private var selectedSubMuscle: String
+    @State private var location: String  // 新增
+    @State private var pr: Double?       // 新增
     @State private var image: UIImage?
     @State private var showingImagePicker = false
     @State private var showingSourceTypeMenu = false
@@ -18,6 +20,8 @@ struct EditEquipmentView: View {
         _name = State(initialValue: equipment.name)
         _selectedMuscle = State(initialValue: equipment.mainMuscle)
         _selectedSubMuscle = State(initialValue: equipment.subMuscle)
+        _location = State(initialValue: equipment.location)  // 新增
+        _pr = State(initialValue: equipment.pr)              // 新增
         if let imageName = equipment.imageName {
             _image = State(initialValue: loadImage(named: imageName))
         }
@@ -35,10 +39,20 @@ struct EditEquipmentView: View {
             
             if let muscle = dataManager.muscles.first(where: { $0.name == selectedMuscle }) {
                 Picker("細部位", selection: $selectedSubMuscle) {
-                    ForEach(muscle.subMuscles, id: \.self) { subMuscle in
-                        Text(subMuscle).tag(subMuscle)
+                    ForEach(muscle.subMuscles, id: \.name) { subMuscle in
+                        Text(subMuscle.name).tag(subMuscle.name)
                     }
                 }
+            }
+            
+            TextField("位置", text: $location)  // 新增
+            
+            HStack {  // 新增
+                Text("個人記錄")
+                Spacer()
+                TextField("PR", value: $pr, format: .number)
+                    .keyboardType(.decimalPad)
+                    .multilineTextAlignment(.trailing)
             }
             
             Section(header: Text("圖片")) {
@@ -80,6 +94,8 @@ struct EditEquipmentView: View {
         updatedEquipment.name = name
         updatedEquipment.mainMuscle = selectedMuscle
         updatedEquipment.subMuscle = selectedSubMuscle
+        updatedEquipment.location = location  // 新增
+        updatedEquipment.pr = pr              // 新增
         
         if let newImage = image, newImage != loadImage(named: equipment.imageName ?? "") {
             if let imageName = saveImage(newImage) {

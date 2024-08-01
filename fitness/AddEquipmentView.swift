@@ -1,11 +1,11 @@
 import SwiftUI
 
 struct AddEquipmentView: View {
-    @Binding var equipments: [Equipment]
-    let muscles: [Muscle]
+    @ObservedObject var dataManager: DataManager
     @State private var name = ""
     @State private var selectedMuscle = ""
     @State private var selectedSubMuscle = ""
+    @State private var selectedLocation = ""
     @State private var image: UIImage?
     @State private var showingImagePicker = false
     @State private var showingSourceTypeMenu = false
@@ -18,20 +18,30 @@ struct AddEquipmentView: View {
         NavigationView {
             Form {
                 TextField("器材名稱", text: $name)
+                
                 Picker("主要部位", selection: $selectedMuscle) {
                     Text("選擇部位").tag("")
-                    ForEach(muscles) { muscle in
+                    ForEach(dataManager.muscles) { muscle in
                         Text(muscle.name).tag(muscle.name)
                     }
                 }
-                if let muscle = muscles.first(where: { $0.name == selectedMuscle }) {
+                
+                if let muscle = dataManager.muscles.first(where: { $0.name == selectedMuscle }) {
                     Picker("細部位", selection: $selectedSubMuscle) {
                         Text("選擇細部位").tag("")
-                        ForEach(muscle.subMuscles, id: \.self) { subMuscle in
-                            Text(subMuscle).tag(subMuscle)
+                        ForEach(muscle.subMuscles, id: \.name) { subMuscle in
+                            Text(subMuscle.name).tag(subMuscle.name)
                         }
                     }
                 }
+                
+                Picker("位置", selection: $selectedLocation) {
+                    Text("選擇位置").tag("")
+                    ForEach(dataManager.locations, id: \.self) { location in
+                        Text(location).tag(location)
+                    }
+                }
+                
                 Section(header: Text("圖片")) {
                     if let image = image {
                         Image(uiImage: image)
@@ -46,12 +56,12 @@ struct AddEquipmentView: View {
             }
             .navigationBarTitle("新增器材", displayMode: .inline)
             .navigationBarItems(trailing: Button("儲存") {
-                            if validateInput() {
-                                saveEquipment()
-                            } else {
-                                showAlert = true
-                            }
-                        })
+                if validateInput() {
+                    saveEquipment()
+                } else {
+                    showAlert = true
+                }
+            })
             .actionSheet(isPresented: $showingSourceTypeMenu) {
                 ActionSheet(title: Text("選擇圖片來源"), buttons: [
                     .default(Text("相冊")) {
@@ -72,8 +82,6 @@ struct AddEquipmentView: View {
                 Alert(title: Text("錯誤"), message: Text(alertMessage), dismissButton: .default(Text("確定")))
             }
         }
-        .accentColor(.customAccent) // 應用到整個 ContentView
-
     }
 
     func validateInput() -> Bool {
@@ -89,6 +97,10 @@ struct AddEquipmentView: View {
             alertMessage = "請選擇一個細部位"
             return false
         }
+        if selectedLocation.isEmpty {
+            alertMessage = "請選擇一個位置"
+            return false
+        }
         if image == nil {
             alertMessage = "請上傳器材圖片"
             return false
@@ -98,8 +110,16 @@ struct AddEquipmentView: View {
     
     func saveEquipment() {
         let imageName = saveImage()
-        let newEquipment = Equipment(id: UUID(), name: name, mainMuscle: selectedMuscle, subMuscle: selectedSubMuscle, imageName: imageName)
-        equipments.append(newEquipment)
+        let newEquipment = Equipment(
+            id: UUID(),
+            name: name,
+            mainMuscle: selectedMuscle,
+            subMuscle: selectedSubMuscle,
+            imageName: imageName,
+            location: selectedLocation,
+            pr: nil  // 初始PR為nil
+        )
+        dataManager.equipments.append(newEquipment)
         presentationMode.wrappedValue.dismiss()
     }
 

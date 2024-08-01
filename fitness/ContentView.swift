@@ -68,9 +68,6 @@ struct ContentView: View {
     @StateObject private var dataManager = DataManager()
     @State private var isWelcomeActive = true
     @State private var selection = 0
-    @State private var showingAddEquipment = false
-    @State private var showingManageMuscles = false
-    @State private var showingManageSubMuscles = false
 
     var body: some View {
         Group {
@@ -78,7 +75,9 @@ struct ContentView: View {
                 WelcomeView(isWelcomeActive: $isWelcomeActive)
             } else {
                 TabView(selection: $selection) {
-                    TrainingLogView(dataManager: dataManager)
+                    NavigationView {
+                        TrainingLogView(dataManager: dataManager)
+                    }
                     .tabItem {
                         Image(systemName: "calendar")
                         Text("運動")
@@ -87,20 +86,6 @@ struct ContentView: View {
                     
                     NavigationView {
                         EquipmentListView(dataManager: dataManager)
-                            .navigationTitle("健身器材")
-                            .navigationBarItems(trailing: Menu {
-                                Button("新增器材") {
-                                    showingAddEquipment = true
-                                }
-                                Button("管理部位") {
-                                    showingManageMuscles = true
-                                }
-                                Button("管理細部位") {
-                                    showingManageSubMuscles = true
-                                }
-                            } label: {
-                                Image(systemName: "ellipsis.circle")
-                            })
                     }
                     .tabItem {
                         Image(systemName: "dumbbell.fill")
@@ -109,27 +94,18 @@ struct ContentView: View {
                     .tag(1)
 
                     SettingsView(dataManager: dataManager)
-                    .tabItem { 
-                        Image(systemName: "gearshape.fill") 
-                        Text("設定") 
+                    .tabItem {
+                        Image(systemName: "gearshape.fill")
+                        Text("設定")
                     }.tag(2)
-                }
-                .sheet(isPresented: $showingAddEquipment) {
-                    AddEquipmentView(equipments: $dataManager.equipments, muscles: dataManager.muscles)
-                }
-                .sheet(isPresented: $showingManageMuscles) {
-                    ManageMusclesView(muscles: $dataManager.muscles)
-                }
-                .sheet(isPresented: $showingManageSubMuscles) {
-                    ManageSubMusclesView(muscles: $dataManager.muscles)
                 }
             }
         }
         .animation(.easeInOut, value: isWelcomeActive)
-        .accentColor(.customAccent) // 應用到整個 ContentView
-
+        .accentColor(.customAccent)
     }
 }
+
 
 // 預覽
 struct ContentView_Previews: PreviewProvider {

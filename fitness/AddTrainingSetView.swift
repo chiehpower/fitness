@@ -12,11 +12,6 @@ struct AddTrainingSetView: View {
     let date: Date
     @Environment(\.presentationMode) var presentationMode
     
-    enum WeightUnit: String, CaseIterable {
-        case kg = "公斤"
-        case lb = "磅"
-    }
-    
     init(dataManager: DataManager, date: Date) {
         self.dataManager = dataManager
         self.date = date
@@ -51,13 +46,13 @@ struct AddTrainingSetView: View {
                         HStack {
                             Spacer()
                             Text("\(reps)")
-                                .font(.system(size: 24, weight: .bold)) // 增大字體大小
-                                .frame(minWidth: 50) // 稍微增加最小寬度
+                                .font(.system(size: 24, weight: .bold))
+                                .frame(minWidth: 50)
                             Spacer()
                             Stepper("", value: $reps, in: 1...100)
                                 .labelsHidden()
                         }
-                        .onChange(of: reps) { _, newValue in
+                        .onChange(of: reps) { oldValue, newValue in
                             UserDefaults.standard.set(newValue, forKey: "lastEditedReps")
                         }
                     }
@@ -68,7 +63,7 @@ struct AddTrainingSetView: View {
                             }
                         }
                         .pickerStyle(SegmentedPickerStyle())
-                        .onChange(of: weightUnit) { _, newValue in
+                        .onChange(of: weightUnit) { oldValue, newValue in
                             UserDefaults.standard.set(newValue.rawValue, forKey: "lastUsedWeightUnit")
                         }
                     }
@@ -76,37 +71,33 @@ struct AddTrainingSetView: View {
                 .padding(.vertical)
                 .background(Color(UIColor.secondarySystemBackground))
 
-                
-            VStack(spacing: 5) {
+                VStack(spacing: 5) {
+                    Text("重量")
+                        .font(.system(size: 50, weight: .bold))
+                        .kerning(1.2)
+                        .shadow(color: .gray.opacity(0.3), radius: 5, x: 1, y: 1)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal)
+                        .offset(y: 12)
 
-                Text("重量")
-                    .font(.system(size: 50, weight: .bold))
-                    .kerning(1.2)
-                    .shadow(color: .gray.opacity(0.3), radius: 5, x: 1, y: 1)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                    HStack(alignment: .lastTextBaseline) {
+                        Text("\(weight)")
+                            .font(.system(size: 70, weight: .medium))
+                            .foregroundColor(.red)
+                            .shadow(color: .gray.opacity(0.5), radius: 5, x: 1, y: 1)
+
+                        Text(weightUnit.rawValue)
+                            .font(.system(size: 24, weight: .medium))
+                    }
+                    .frame(maxWidth: .infinity, alignment: .trailing)
                     .padding(.horizontal)
-                    .offset(y: 12)  // 正值會將文本往下移動
-
-                            
-                HStack(alignment: .lastTextBaseline) {
-                    Text("\(weight)")
-                        .font(.system(size: 70, weight: .medium))
-                        .foregroundColor(.red)
-                        .shadow(color: .gray.opacity(0.5), radius: 5, x: 1, y: 1)
-
-
-                    Text(weightUnit.rawValue)
-                        .font(.system(size: 24, weight: .medium))
+                    .padding(.bottom, 10)
+                    
+                    CustomNumberPad(value: $weight)
                 }
-                .frame(maxWidth: .infinity, alignment: .trailing)
-                .padding(.horizontal)
-                .padding(.bottom, 10)
-                
-                CustomNumberPad(value: $weight)
+                .background(Color(UIColor.secondarySystemBackground))
             }
-            .background(Color(UIColor.secondarySystemBackground))
-            }
-            .navigationTitle("新增訓練組")
+            .navigationBarTitle("新增訓練組", displayMode: .inline)
             .navigationBarItems(trailing: Button("儲存") {
                 if validateInput() {
                     saveTrainingSet()
@@ -119,7 +110,7 @@ struct AddTrainingSetView: View {
             }
         }        
         .accentColor(.customAccent) // 應用到整個 NavigationView
-
+  
     }
     private func customRow<Content: View>(title: String, @ViewBuilder content: () -> Content) -> some View {
         HStack {
@@ -157,14 +148,28 @@ struct AddTrainingSetView: View {
             weightInKg = weightValue
         }
         
-        let newSet = TrainingSet(id: UUID(), equipment: equipment, reps: reps, weight: weightInKg, time: time)
+        let timeComponents = Calendar.current.dateComponents([.hour, .minute], from: time)
+        let totalMinutes = (timeComponents.hour ?? 0) * 60 + (timeComponents.minute ?? 0)
+        
+        let newSet = SetInfo(
+            reps: reps,
+            weight: weightInKg,
+            weightUnit: weightUnit.rawValue,
+            time: totalMinutes,
+            timeUnit: "分鐘"
+        )
+        
+        let newTrainingSet = TrainingSet(id: UUID(), equipment: equipment, sets: [newSet])
         
         if let index = dataManager.trainingLogs.firstIndex(where: { Calendar.current.isDate($0.date, inSameDayAs: date) }) {
-            dataManager.trainingLogs[index].sets.append(newSet)
+            dataManager.trainingLogs[index].sets.append(newTrainingSet)
         } else {
-            let newLog = TrainingLog(id: UUID(), date: date, sets: [newSet])
+            let newLog = TrainingLog(id: UUID(), date: date, sets: [newTrainingSet])
             dataManager.trainingLogs.append(newLog)
         }
+        
+        UserDefaults.standard.set(reps, forKey: "lastEditedReps")
+        UserDefaults.standard.set(weightUnit.rawValue, forKey: "lastUsedWeightUnit")
         
         presentationMode.wrappedValue.dismiss()
     }
@@ -174,9 +179,9 @@ struct CustomNumberPad: View {
     @Binding var value: String
     
     let buttons: [[String]] = [
-        ["7", "8", "9"],
-        ["4", "5", "6"],
         ["1", "2", "3"],
+        ["4", "5", "6"],
+        ["7", "8", "9"],
         ["C", "0", "."]
     ]
     
@@ -200,7 +205,7 @@ struct CustomNumberPad: View {
                 }
             }
         }
-        .frame(height: UIScreen.main.bounds.height / 3)  // 設置鍵盤高度為螢幕高度的1/3
+        .frame(height: UIScreen.main.bounds.height / 3)
     }
     
     private func buttonColor(for button: String) -> Color {

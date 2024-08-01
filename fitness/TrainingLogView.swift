@@ -7,93 +7,94 @@ struct TrainingLogView: View {
     @State private var showingAddSet = false
     
     var body: some View {
-        NavigationView {
-            VStack {
-                CustomDatePicker(
-                    selectedDate: $selectedDate,
-                    dataManager: dataManager,
-                    onDateDoubleTapped: { date in
-                        selectedDate = date
-                        showingAddSet = true
-                    }
-                )
-                .padding()
-                
-                List {
-                    ForEach(dataManager.trainingLogs.filter { Calendar.current.isDate($0.date, inSameDayAs: selectedDate) }) { log in
-                        Section(header: Text(formatDate(log.date))) {
-                            ForEach(log.sets) { set in
-                                VStack(alignment: .leading, spacing: 5) {
+        VStack(spacing: 0) {
+            CustomDatePicker(
+                selectedDate: $selectedDate,
+                dataManager: dataManager,
+                onDateDoubleTapped: { date in
+                    selectedDate = date
+                    showingAddSet = true
+                }
+            )
+            .padding(.top)
+            
+            List {
+                ForEach(dataManager.trainingLogs.filter { Calendar.current.isDate($0.date, inSameDayAs: selectedDate) }) { log in
+                    Section(header: Text(formatDate(log.date))) {
+                        ForEach(log.sets) { trainingSet in
+                            VStack(alignment: .leading, spacing: 5) {
+                                Text(trainingSet.equipment.name)
+                                    .font(.headline)
+                                ForEach(trainingSet.sets.indices, id: \.self) { index in
+                                    let set = trainingSet.sets[index]
                                     HStack {
-                                        Text(set.equipment.name)
-                                            .font(.headline)
+                                        Text("組數 \(index + 1)")
+                                            .font(.subheadline)
                                         Spacer()
                                         Text("\(set.reps) 次")
-                                        Text("\(formatWeight(set.weight)) \(dataManager.preferredWeightUnit.rawValue)")
-                                    }
-                                    HStack {
-                                        Text(set.equipment.mainMuscle)
-                                            .font(.subheadline)
-                                            .padding(3)
-                                            .background(Color.blue.opacity(0.2))
-                                            .cornerRadius(5)
-                                        Text(set.equipment.subMuscle)
-                                            .font(.subheadline)
-                                            .padding(3)
-                                            .background(Color.green.opacity(0.2))
-                                            .cornerRadius(5)
-                                        Spacer()
-                                        Text(formatTime(set.time))
-                                            .font(.caption)
-                                            .foregroundColor(.gray)
+                                        Text("\(formatWeight(set.weight)) \(set.weightUnit)")
+                                        if set.time > 0 {
+                                            Text("\(set.time) \(set.timeUnit)")
+                                        }
                                     }
                                 }
+                                HStack {
+                                    Text(trainingSet.equipment.mainMuscle)
+                                        .font(.caption)
+                                        .padding(3)
+                                        .background(Color.blue.opacity(0.2))
+                                        .cornerRadius(5)
+                                    Text(trainingSet.equipment.subMuscle)
+                                        .font(.caption)
+                                        .padding(3)
+                                        .background(Color.green.opacity(0.2))
+                                        .cornerRadius(5)
+                                    Spacer()
+                                    Text(trainingSet.equipment.location)
+                                        .font(.caption)
+                                        .foregroundColor(.gray)
+                                }
                             }
-                            .onDelete { indices in
-                                deleteTrainingSet(for: log, at: indices)
-                            }
+                        }
+                        .onDelete { indices in
+                            deleteTrainingSet(for: log, at: indices)
                         }
                     }
                 }
-                
-                Button("新增訓練組") {
-                    showingAddSet = true
-                }
-                .padding()
             }
-            .navigationTitle("訓練記錄")
-            .navigationBarItems(trailing: EditButton())
-            .sheet(isPresented: $showingAddSet) {
-                AddTrainingSetView(dataManager: dataManager, date: selectedDate)
+            
+            Button("新增訓練組") {
+                showingAddSet = true
             }
+            .padding()
+        }
+        .navigationTitle("訓練記錄")
+        .navigationBarItems(trailing: EditButton())
+        .sheet(isPresented: $showingAddSet) {
+            AddTrainingSetView(dataManager: dataManager, date: selectedDate)
         }
     }
+
     private func deleteTrainingSet(for log: TrainingLog, at offsets: IndexSet) {
         if let index = dataManager.trainingLogs.firstIndex(where: { $0.id == log.id }) {
             dataManager.trainingLogs[index].sets.remove(atOffsets: offsets)
             
-            // 如果刪除後該日誌沒有任何訓練組，則刪除整個日誌
             if dataManager.trainingLogs[index].sets.isEmpty {
                 dataManager.trainingLogs.remove(at: index)
             }
         }
     }
+
     private func formatDate(_ date: Date) -> String {
         let formatter = DateFormatter()
         formatter.dateFormat = "MM月dd日 EEEE"
         formatter.locale = Locale(identifier: "zh_TW")
         return formatter.string(from: date)
     }
-    private func formatTime(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "HH:mm"
-        return formatter.string(from: date)
-    }
+
     private func formatWeight(_ weight: Double) -> String {
-        let convertedWeight = dataManager.convertWeight(weight, to: dataManager.preferredWeightUnit)
-        return String(format: "%.1f", convertedWeight)
+        return String(format: "%.1f", weight)
     }
-    
 }
 
 struct CustomDatePicker: View {

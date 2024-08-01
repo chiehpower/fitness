@@ -1,4 +1,5 @@
 import SwiftUI
+import Foundation
 
 struct SettingsView: View {
     @ObservedObject var dataManager: DataManager
@@ -23,7 +24,7 @@ struct SettingsView: View {
     }
 }
 
-enum WeightUnit: String, Codable {
+enum WeightUnit: String, Codable, CaseIterable {
     case kg = "公斤"
     case lb = "磅"
 }

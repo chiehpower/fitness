@@ -1,28 +1,33 @@
 import SwiftUI
 
-// 管理部位視圖
 struct ManageMusclesView: View {
     @Binding var muscles: [Muscle]
     @State private var newMuscleName = ""
+    @State private var newMuscleColor = ""
     
     var body: some View {
         NavigationView {
             List {
                 Section(header: Text("新增部位")) {
-                    HStack {
-                        TextField("部位名稱", text: $newMuscleName)
-                        Button("新增") {
-                            if !newMuscleName.isEmpty {
-                                muscles.append(Muscle(id: UUID(), name: newMuscleName, subMuscles: []))
-                                newMuscleName = ""
-                            }
+                    TextField("部位名稱", text: $newMuscleName)
+                    TextField("顏色", text: $newMuscleColor)
+                    Button("新增") {
+                        if !newMuscleName.isEmpty && !newMuscleColor.isEmpty {
+                            muscles.append(Muscle(id: UUID(), name: newMuscleName, color: newMuscleColor, subMuscles: []))
+                            newMuscleName = ""
+                            newMuscleColor = ""
                         }
                     }
                 }
                 
                 Section(header: Text("現有部位")) {
                     ForEach(muscles) { muscle in
-                        Text(muscle.name)
+                        HStack {
+                            Text(muscle.name)
+                            Spacer()
+                            Text(muscle.color)
+                                .foregroundColor(Color(muscle.color))
+                        }
                     }
                     .onDelete(perform: deleteMuscle)
                 }
