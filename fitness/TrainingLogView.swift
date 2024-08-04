@@ -42,12 +42,12 @@ struct TrainingLogView: View {
                                     Text(trainingSet.equipment.mainMuscle)
                                         .font(.caption)
                                         .padding(3)
-                                        .background(Color.blue.opacity(0.2))
+                                        .background(colorForMuscle(trainingSet.equipment.mainMuscle).opacity(0.2))
                                         .cornerRadius(5)
                                     Text(trainingSet.equipment.subMuscle)
                                         .font(.caption)
                                         .padding(3)
-                                        .background(Color.green.opacity(0.2))
+                                        .background(colorForMuscle(trainingSet.equipment.subMuscle).opacity(0.2))
                                         .cornerRadius(5)
                                     Spacer()
                                     Text(trainingSet.equipment.location)
@@ -82,6 +82,8 @@ struct TrainingLogView: View {
             if dataManager.trainingLogs[index].sets.isEmpty {
                 dataManager.trainingLogs.remove(at: index)
             }
+            
+            dataManager.saveTrainingLogs()
         }
     }
 
@@ -94,6 +96,16 @@ struct TrainingLogView: View {
 
     private func formatWeight(_ weight: Double) -> String {
         return String(format: "%.1f", weight)
+    }
+
+    private func colorForMuscle(_ muscleName: String) -> Color {
+        if let muscle = dataManager.muscles.first(where: { $0.name == muscleName }) {
+            return Color(hex: muscle.color) ?? .gray
+        } else if let muscle = dataManager.muscles.first(where: { $0.subMuscles.contains(where: { $0.name == muscleName }) }),
+                  let subMuscle = muscle.subMuscles.first(where: { $0.name == muscleName }) {
+            return Color(hex: subMuscle.color) ?? .gray
+        }
+        return .gray
     }
 }
 

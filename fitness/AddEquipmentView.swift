@@ -107,7 +107,6 @@ struct AddEquipmentView: View {
         }
         return true
     }
-    
     func saveEquipment() {
         let imageName = saveImage()
         let newEquipment = Equipment(
@@ -117,21 +116,28 @@ struct AddEquipmentView: View {
             subMuscle: selectedSubMuscle,
             imageName: imageName,
             location: selectedLocation,
-            pr: nil  // 初始PR為nil
+            pr: nil
         )
-        dataManager.equipments.append(newEquipment)
+        dataManager.addEquipment(newEquipment)
         presentationMode.wrappedValue.dismiss()
     }
 
     func saveImage() -> String? {
         guard let image = image else { return nil }
-        let imageName = UUID().uuidString
-        if let data = image.jpegData(compressionQuality: 0.8),
-           let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first {
-            let fileURL = documentsDirectory.appendingPathComponent(imageName)
-            try? data.write(to: fileURL)
-            return imageName
+        let imageName = UUID().uuidString + ".jpg"
+        if let data = image.jpegData(compressionQuality: 0.8) {
+            let fileManager = FileManager.default
+            do {
+                let documentsDirectory = try fileManager.url(for: .documentDirectory, in: .userDomainMask, appropriateFor: nil, create: false)
+                let fileURL = documentsDirectory.appendingPathComponent(imageName)
+                try data.write(to: fileURL)
+                print("Image saved successfully: \(fileURL.path)")
+                return imageName
+            } catch {
+                print("Error saving image: \(error)")
+            }
         }
         return nil
     }
+
 }

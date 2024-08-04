@@ -1,5 +1,4 @@
 import SwiftUI
-
 struct Equipment: Identifiable, Codable, Hashable {
     let id: UUID
     var name: String
@@ -58,7 +57,7 @@ class DataManager: ObservableObject {
     @Published var equipments: [Equipment] = []
     @Published var trainingLogs: [TrainingLog] = []
     @Published var preferredWeightUnit: WeightUnit = .kg
-    @Published var locations: [String] = []  // 新添加的locations屬性
+    @Published var locations: [String] = []
 
     init() {
         loadData()
@@ -69,8 +68,10 @@ class DataManager: ObservableObject {
         loadEquipments()
         loadTrainingLogs()
         loadPreferredWeightUnit()
-        loadLocations()  // 新添加的方法調用
+        loadLocations()
     }
+
+    // MARK: - Muscles
 
     func loadMuscles() {
         if let musclesData = UserDefaults.standard.data(forKey: "muscles"),
@@ -79,6 +80,31 @@ class DataManager: ObservableObject {
         }
     }
 
+    func saveMuscles() {
+        if let encoded = try? JSONEncoder().encode(muscles) {
+            UserDefaults.standard.set(encoded, forKey: "muscles")
+        }
+    }
+
+    func addMuscle(_ muscle: Muscle) {
+        muscles.append(muscle)
+        saveMuscles()
+    }
+
+    func updateMuscle(_ updatedMuscle: Muscle) {
+        if let index = muscles.firstIndex(where: { $0.id == updatedMuscle.id }) {
+            muscles[index] = updatedMuscle
+            saveMuscles()
+        }
+    }
+
+    func deleteMuscle(_ muscle: Muscle) {
+        muscles.removeAll { $0.id == muscle.id }
+        saveMuscles()
+    }
+
+    // MARK: - Equipments
+
     func loadEquipments() {
         if let equipmentsData = UserDefaults.standard.data(forKey: "equipments"),
            let decodedEquipments = try? JSONDecoder().decode([Equipment].self, from: equipmentsData) {
@@ -86,22 +112,15 @@ class DataManager: ObservableObject {
         }
     }
 
-    func loadTrainingLogs() {
-        if let logsData = UserDefaults.standard.data(forKey: "trainingLogs"),
-           let decodedLogs = try? JSONDecoder().decode([TrainingLog].self, from: logsData) {
-            self.trainingLogs = decodedLogs
+    func saveEquipments() {
+        if let encoded = try? JSONEncoder().encode(equipments) {
+            UserDefaults.standard.set(encoded, forKey: "equipments")
         }
     }
 
-    private func loadPreferredWeightUnit() {
-        if let unitString = UserDefaults.standard.string(forKey: "preferredWeightUnit"),
-           let unit = WeightUnit(rawValue: unitString) {
-            preferredWeightUnit = unit
-        }
-    }
-
-    func savePreferredWeightUnit() {
-        UserDefaults.standard.set(preferredWeightUnit.rawValue, forKey: "preferredWeightUnit")
+    func addEquipment(_ equipment: Equipment) {
+        equipments.append(equipment)
+        saveEquipments()
     }
 
     func updateEquipment(_ updatedEquipment: Equipment) {
@@ -115,21 +134,58 @@ class DataManager: ObservableObject {
         equipments.removeAll { $0.id == equipment.id }
         saveEquipments()
     }
-    
-    private func saveEquipments() {
-        if let encoded = try? JSONEncoder().encode(equipments) {
-            UserDefaults.standard.set(encoded, forKey: "equipments")
+
+    // MARK: - Training Logs
+
+    func loadTrainingLogs() {
+    if let logsData = UserDefaults.standard.data(forKey: "trainingLogs"),
+       let decodedLogs = try? JSONDecoder().decode([TrainingLog].self, from: logsData) {
+        self.trainingLogs = decodedLogs
+        print("加载了 \(trainingLogs.count) 条训练记录")
+    } else {
+        print("没有找到保存的训练记录或解码失败")
+    }
+    }
+
+    func saveTrainingLogs() {
+    if let encoded = try? JSONEncoder().encode(trainingLogs) {
+        UserDefaults.standard.set(encoded, forKey: "trainingLogs")
+        print("保存了 \(trainingLogs.count) 条训练记录")
+    }
+    }
+
+    func addTrainingLog(_ log: TrainingLog) {
+        trainingLogs.append(log)
+        saveTrainingLogs()
+    }
+
+    func updateTrainingLog(_ updatedLog: TrainingLog) {
+        if let index = trainingLogs.firstIndex(where: { $0.id == updatedLog.id }) {
+            trainingLogs[index] = updatedLog
+            saveTrainingLogs()
         }
     }
 
-    func convertWeight(_ weight: Double, to unit: WeightUnit) -> Double {
-        switch unit {
-        case .kg:
-            return weight
-        case .lb:
-            return weight * 2.20462 // 公斤转磅
+    func deleteTrainingLog(_ log: TrainingLog) {
+        trainingLogs.removeAll { $0.id == log.id }
+        saveTrainingLogs()
+    }
+
+    // MARK: - Preferred Weight Unit
+
+    private func loadPreferredWeightUnit() {
+        if let unitString = UserDefaults.standard.string(forKey: "preferredWeightUnit"),
+           let unit = WeightUnit(rawValue: unitString) {
+            preferredWeightUnit = unit
         }
     }
+
+    func savePreferredWeightUnit() {
+        UserDefaults.standard.set(preferredWeightUnit.rawValue, forKey: "preferredWeightUnit")
+    }
+
+    // MARK: - Locations
+
     func loadLocations() {
         if let locationsData = UserDefaults.standard.stringArray(forKey: "locations") {
             self.locations = locationsData
@@ -145,13 +201,24 @@ class DataManager: ObservableObject {
         saveLocations()
     }
 
+    func updateLocation(at index: Int, with newName: String) {
+        locations[index] = newName
+        saveLocations()
+    }
+
     func deleteLocation(at index: Int) {
         locations.remove(at: index)
         saveLocations()
     }
 
-    func updateLocation(at index: Int, with newName: String) {
-        locations[index] = newName
-        saveLocations()
+    // MARK: - Utility Methods
+
+    func convertWeight(_ weight: Double, to unit: WeightUnit) -> Double {
+        switch unit {
+        case .kg:
+            return weight
+        case .lb:
+            return weight * 2.20462 // 公斤转磅
+        }
     }
 }

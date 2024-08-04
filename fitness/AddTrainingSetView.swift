@@ -163,11 +163,12 @@ struct AddTrainingSetView: View {
         
         if let index = dataManager.trainingLogs.firstIndex(where: { Calendar.current.isDate($0.date, inSameDayAs: date) }) {
             dataManager.trainingLogs[index].sets.append(newTrainingSet)
+            dataManager.updateTrainingLog(dataManager.trainingLogs[index])
         } else {
             let newLog = TrainingLog(id: UUID(), date: date, sets: [newTrainingSet])
-            dataManager.trainingLogs.append(newLog)
+            dataManager.addTrainingLog(newLog)
         }
-        
+                
         UserDefaults.standard.set(reps, forKey: "lastEditedReps")
         UserDefaults.standard.set(weightUnit.rawValue, forKey: "lastUsedWeightUnit")
         
