@@ -532,39 +532,3 @@ struct WrapLayout<Content: View>: View {
         }
     }
 }
-
-struct ManageLocationsView: View {
-    @ObservedObject var dataManager: DataManager
-    @State private var newLocationName = ""
-
-    var body: some View {
-        List {
-            Section(header: Text("新增地點")) {
-                TextField("地點名稱", text: $newLocationName)
-                Button("新增") {
-                    let trimmed = newLocationName.trimmingCharacters(in: .whitespacesAndNewlines)
-                    guard !trimmed.isEmpty else {
-                        return
-                    }
-                    dataManager.addLocation(trimmed)
-                    newLocationName = ""
-                }
-            }
-
-            Section(header: Text("現有地點")) {
-                ForEach(dataManager.locations, id: \.self) { location in
-                    Text(location)
-                }
-                .onDelete(perform: deleteLocations)
-            }
-        }
-        .navigationBarTitle("管理地點", displayMode: .inline)
-        .navigationBarItems(trailing: EditButton())
-    }
-
-    private func deleteLocations(at offsets: IndexSet) {
-        offsets.sorted(by: >).forEach { index in
-            dataManager.deleteLocation(at: index)
-        }
-    }
-}

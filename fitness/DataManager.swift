@@ -1,4 +1,5 @@
 import SwiftUI
+import Combine
 struct Equipment: Identifiable, Codable, Hashable {
     let id: UUID
     var name: String

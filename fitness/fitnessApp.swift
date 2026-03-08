@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import Combine
 
 final class AppState: ObservableObject {
     @Published var pendingNfcTagId: String?
