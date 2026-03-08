@@ -4,8 +4,6 @@ struct EditEquipmentView: View {
     @ObservedObject var dataManager: DataManager
     @State private var equipment: Equipment
     @State private var name: String
-    @State private var selectedMuscle: String
-    @State private var selectedSubMuscle: String
     @State private var location: String  // 新增
     @State private var pr: Double?       // 新增
     @State private var image: UIImage?
@@ -18,8 +16,6 @@ struct EditEquipmentView: View {
         self._dataManager = ObservedObject(wrappedValue: dataManager)
         self._equipment = State(initialValue: equipment)
         _name = State(initialValue: equipment.name)
-        _selectedMuscle = State(initialValue: equipment.mainMuscle)
-        _selectedSubMuscle = State(initialValue: equipment.subMuscle)
         _location = State(initialValue: equipment.location)  // 新增
         _pr = State(initialValue: equipment.pr)              // 新增
         if let imageName = equipment.imageName {
@@ -30,20 +26,6 @@ struct EditEquipmentView: View {
     var body: some View {
         Form {
             TextField("器材名稱", text: $name)
-            
-            Picker("主要部位", selection: $selectedMuscle) {
-                ForEach(dataManager.muscles) { muscle in
-                    Text(muscle.name).tag(muscle.name)
-                }
-            }
-            
-            if let muscle = dataManager.muscles.first(where: { $0.name == selectedMuscle }) {
-                Picker("細部位", selection: $selectedSubMuscle) {
-                    ForEach(muscle.subMuscles, id: \.name) { subMuscle in
-                        Text(subMuscle.name).tag(subMuscle.name)
-                    }
-                }
-            }
             
             TextField("位置", text: $location)  // 新增
             
@@ -92,8 +74,6 @@ struct EditEquipmentView: View {
     private func saveEquipment() {
         var updatedEquipment = equipment
         updatedEquipment.name = name
-        updatedEquipment.mainMuscle = selectedMuscle
-        updatedEquipment.subMuscle = selectedSubMuscle
         updatedEquipment.location = location  // 新增
         updatedEquipment.pr = pr              // 新增
         

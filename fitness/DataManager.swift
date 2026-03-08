@@ -2,9 +2,8 @@ import SwiftUI
 struct Equipment: Identifiable, Codable, Hashable {
     let id: UUID
     var name: String
-    var mainMuscle: String
-    var subMuscle: String
     var imageName: String?
+    var nfcTagId: String?
     var location: String  // 新增
     var pr: Double?       // 新增
 
@@ -34,6 +33,9 @@ struct SubMuscle: Codable, Hashable {
 struct TrainingSet: Identifiable, Codable {
     let id: UUID
     var equipment: Equipment
+    var mainMuscle: String
+    var subMuscle: String?
+    var variant: String?
     var sets: [SetInfo]
 }
 
@@ -58,6 +60,7 @@ class DataManager: ObservableObject {
     @Published var trainingLogs: [TrainingLog] = []
     @Published var preferredWeightUnit: WeightUnit = .kg
     @Published var locations: [String] = []
+    @Published var variants: [String] = []
 
     init() {
         loadData()
@@ -69,6 +72,7 @@ class DataManager: ObservableObject {
         loadTrainingLogs()
         loadPreferredWeightUnit()
         loadLocations()
+        loadVariants()
     }
 
     // MARK: - Muscles
@@ -133,6 +137,10 @@ class DataManager: ObservableObject {
     func deleteEquipment(_ equipment: Equipment) {
         equipments.removeAll { $0.id == equipment.id }
         saveEquipments()
+    }
+
+    func equipment(forNfcTagId nfcTagId: String) -> Equipment? {
+        equipments.first { $0.nfcTagId == nfcTagId }
     }
 
     // MARK: - Training Logs
@@ -211,6 +219,33 @@ class DataManager: ObservableObject {
         saveLocations()
     }
 
+    // MARK: - Variants
+
+    func loadVariants() {
+        if let variantsData = UserDefaults.standard.stringArray(forKey: "variants") {
+            self.variants = variantsData
+        }
+    }
+
+    func saveVariants() {
+        UserDefaults.standard.set(variants, forKey: "variants")
+    }
+
+    func addVariant(_ variant: String) {
+        variants.append(variant)
+        saveVariants()
+    }
+
+    func updateVariant(at index: Int, with newName: String) {
+        variants[index] = newName
+        saveVariants()
+    }
+
+    func deleteVariant(at index: Int) {
+        variants.remove(at: index)
+        saveVariants()
+    }
+
     // MARK: - Utility Methods
 
     func convertWeight(_ weight: Double, to unit: WeightUnit) -> Double {
@@ -221,4 +256,46 @@ class DataManager: ObservableObject {
             return weight * 2.20462 // 公斤转磅
         }
     }
+
+    func exportBackupData() -> Data? {
+        let payload = BackupPayload(
+            exportedAt: Date(),
+            muscles: muscles,
+            equipments: equipments,
+            trainingLogs: trainingLogs,
+            preferredWeightUnit: preferredWeightUnit,
+            locations: locations,
+            variants: variants
+        )
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        encoder.dateEncodingStrategy = .iso8601
+        return try? encoder.encode(payload)
+    }
+
+    func applyBackup(_ payload: BackupPayload) {
+        muscles = payload.muscles
+        equipments = payload.equipments
+        trainingLogs = payload.trainingLogs
+        preferredWeightUnit = payload.preferredWeightUnit
+        locations = payload.locations
+        variants = payload.variants ?? []
+
+        saveMuscles()
+        saveEquipments()
+        saveTrainingLogs()
+        savePreferredWeightUnit()
+        saveLocations()
+        saveVariants()
+    }
+}
+
+struct BackupPayload: Codable {
+    let exportedAt: Date
+    let muscles: [Muscle]
+    let equipments: [Equipment]
+    let trainingLogs: [TrainingLog]
+    let preferredWeightUnit: WeightUnit
+    let locations: [String]
+    let variants: [String]?
 }
