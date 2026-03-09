@@ -147,7 +147,7 @@ struct AddEquipmentView: View {
             Form {
                 TextField("器材名稱", text: $name)
                 
-                TextField("位置", text: $location)
+                TextField("位置 (選填)", text: $location)
                 
                 Section(header: Text("NFC Tag")) {
                     HStack {
@@ -226,10 +226,6 @@ struct AddEquipmentView: View {
             alertMessage = "請輸入器材名稱"
             return false
         }
-        if location.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            alertMessage = "請輸入位置"
-            return false
-        }
         if image == nil {
             alertMessage = "請上傳器材圖片"
             return false
@@ -248,8 +244,11 @@ struct AddEquipmentView: View {
             name: name,
             imageName: imageName,
             nfcTagId: nfcTagId.isEmpty ? nil : nfcTagId,
-            location: trimmedLocation,
-            pr: nil
+            location: trimmedLocation.isEmpty ? nil : trimmedLocation,
+            pr: nil,
+            mainPart: "全身",
+            muscleTags: [],
+            actions: []
         )
         dataManager.addEquipment(newEquipment)
         presentationMode.wrappedValue.dismiss()

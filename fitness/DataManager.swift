@@ -5,15 +5,76 @@ struct Equipment: Identifiable, Codable, Hashable {
     var name: String
     var imageName: String?
     var nfcTagId: String?
-    var location: String  // 新增
-    var pr: Double?       // 新增
+    var location: String?
+    var pr: Double?
+    var mainPart: String
+    var muscleTags: [String]
+    var actions: [String]
 
-    // 實現 Hashable 協議
+    init(
+        id: UUID,
+        name: String,
+        imageName: String?,
+        nfcTagId: String?,
+        location: String?,
+        pr: Double?,
+        mainPart: String = "全身",
+        muscleTags: [String] = [],
+        actions: [String] = []
+    ) {
+        self.id = id
+        self.name = name
+        self.imageName = imageName
+        self.nfcTagId = nfcTagId
+        self.location = location
+        self.pr = pr
+        self.mainPart = mainPart
+        self.muscleTags = muscleTags
+        self.actions = actions
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case name
+        case imageName
+        case nfcTagId
+        case location
+        case pr
+        case mainPart
+        case muscleTags
+        case actions
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        name = try container.decode(String.self, forKey: .name)
+        imageName = try container.decodeIfPresent(String.self, forKey: .imageName)
+        nfcTagId = try container.decodeIfPresent(String.self, forKey: .nfcTagId)
+        location = try container.decodeIfPresent(String.self, forKey: .location)
+        pr = try container.decodeIfPresent(Double.self, forKey: .pr)
+        mainPart = try container.decodeIfPresent(String.self, forKey: .mainPart) ?? "全身"
+        muscleTags = try container.decodeIfPresent([String].self, forKey: .muscleTags) ?? []
+        actions = try container.decodeIfPresent([String].self, forKey: .actions) ?? []
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encode(name, forKey: .name)
+        try container.encodeIfPresent(imageName, forKey: .imageName)
+        try container.encodeIfPresent(nfcTagId, forKey: .nfcTagId)
+        try container.encodeIfPresent(location, forKey: .location)
+        try container.encodeIfPresent(pr, forKey: .pr)
+        try container.encode(mainPart, forKey: .mainPart)
+        try container.encode(muscleTags, forKey: .muscleTags)
+        try container.encode(actions, forKey: .actions)
+    }
+
     func hash(into hasher: inout Hasher) {
         hasher.combine(id)
     }
 
-    // 實現 Equatable 協議（Hashable 需要）
     static func == (lhs: Equipment, rhs: Equipment) -> Bool {
         return lhs.id == rhs.id
     }

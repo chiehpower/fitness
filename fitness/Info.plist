@@ -13,5 +13,11 @@
 			</array>
 		</dict>
 	</array>
+	<key>NSCameraUsageDescription</key>
+	<string>需要使用相機來拍攝器材照片。</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>需要存取相簿來選擇器材照片。</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>需要儲存器材照片到相簿。</string>
 </dict>
 </plist>

@@ -7,10 +7,17 @@ struct TrainingLogView: View {
     @ObservedObject var dataManager: DataManager
     @State private var selectedDate = Date()
     @State private var showingAddSet = false
+    @State private var showingCalendar = false
     
     var body: some View {
         VStack(spacing: 0) {
             headerView
+                .simultaneousGesture(
+                    DragGesture(minimumDistance: 20)
+                        .onEnded { value in
+                            handleWeekSwipe(value)
+                        }
+                )
 
             ScrollView {
                 VStack(spacing: 16) {
@@ -62,6 +69,13 @@ struct TrainingLogView: View {
             .padding(.vertical, 10)
             .background(Color(UIColor.systemGroupedBackground).opacity(0.95))
         }
+        .sheet(isPresented: $showingCalendar) {
+            CalendarSheetView(
+                selectedDate: $selectedDate,
+                dataManager: dataManager,
+                isPresented: $showingCalendar
+            )
+        }
         .onChange(of: appState.shouldShowAddTrainingSet) { _, newValue in
             if newValue {
                 selectedDate = Date()
@@ -73,10 +87,29 @@ struct TrainingLogView: View {
     private var headerView: some View {
         VStack(spacing: 12) {
             HStack {
+                Button(action: {
+                    showingCalendar = true
+                }) {
+                    Image(systemName: "calendar")
+                        .foregroundColor(.customAccent)
+                }
+
                 Spacer()
+
                 Text("訓練記錄")
                     .font(.headline)
+
                 Spacer()
+
+                Button(action: {
+                    selectedDate = Date()
+                }) {
+                    Text("今天")
+                        .font(.subheadline.bold())
+                        .foregroundColor(Calendar.current.isDateInToday(selectedDate) ? .secondary : .customAccent)
+                }
+                .disabled(Calendar.current.isDateInToday(selectedDate))
+
                 Button(action: {
                     showingAddSet = true
                 }) {
@@ -93,8 +126,12 @@ struct TrainingLogView: View {
     }
 
     private var weekStrip: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 12) {
+        GeometryReader { geometry in
+            let totalSpacing: CGFloat = 8 * 6
+            let totalPadding: CGFloat = 32
+            let cellWidth = max(36, (geometry.size.width - totalSpacing - totalPadding) / 7)
+
+            HStack(spacing: 8) {
                 ForEach(weekDates(for: selectedDate), id: \.self) { date in
                     let isSelected = Calendar.current.isDate(date, inSameDayAs: selectedDate)
                     VStack(spacing: 4) {
@@ -105,11 +142,11 @@ struct TrainingLogView: View {
                             .font(.subheadline.bold())
                             .foregroundColor(isSelected ? .white : .primary)
                     }
-                    .frame(width: 48, height: 64)
+                    .frame(width: cellWidth, height: 60)
                     .background(isSelected ? Color.customAccent : Color.white)
-                    .cornerRadius(16)
+                    .cornerRadius(14)
                     .overlay(
-                        RoundedRectangle(cornerRadius: 16)
+                        RoundedRectangle(cornerRadius: 14)
                             .stroke(Color.gray.opacity(0.15), lineWidth: isSelected ? 0 : 1)
                     )
                     .shadow(color: isSelected ? Color.customAccent.opacity(0.2) : Color.clear, radius: 4, x: 0, y: 2)
@@ -121,6 +158,7 @@ struct TrainingLogView: View {
             .padding(.horizontal, 16)
             .padding(.bottom, 12)
         }
+        .frame(height: 72)
     }
 
     private var daySummaryHeader: some View {
@@ -280,6 +318,29 @@ struct TrainingLogView: View {
         }
     }
 
+    private func handleWeekSwipe(_ value: DragGesture.Value) {
+        let horizontal = value.translation.width
+        let vertical = value.translation.height
+        let threshold: CGFloat = 50
+
+        guard abs(horizontal) > abs(vertical) else {
+            return
+        }
+
+        if horizontal <= -threshold {
+            shiftWeek(by: 1)
+        } else if horizontal >= threshold {
+            shiftWeek(by: -1)
+        }
+    }
+
+    private func shiftWeek(by offset: Int) {
+        guard let newDate = Calendar.current.date(byAdding: .weekOfYear, value: offset, to: selectedDate) else {
+            return
+        }
+        selectedDate = newDate
+    }
+
     private func weekdayString(for date: Date) -> String {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "zh_TW")
@@ -415,7 +476,7 @@ struct TrainingLogView: View {
             VStack(alignment: .leading, spacing: 6) {
                 Text(equipment.name)
                     .font(.headline)
-                Text(equipment.location)
+                Text(equipment.location ?? "未設定")
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
@@ -518,100 +579,171 @@ struct EquipmentGroup: Identifiable {
     let trainingSets: [TrainingSet]
 }
 
+struct CalendarSheetView: View {
+    @Binding var selectedDate: Date
+    @ObservedObject var dataManager: DataManager
+    @Binding var isPresented: Bool
+
+    var body: some View {
+        ZStack {
+            Color.black.opacity(0.3)
+                .ignoresSafeArea()
+
+            VStack(spacing: 0) {
+                HStack {
+                    Button("取消") {
+                        isPresented = false
+                    }
+                    .foregroundColor(.customAccent)
+                    .font(.system(size: 17, weight: .medium))
+
+                    Spacer()
+
+                    Text("選擇日期")
+                        .font(.system(size: 17, weight: .bold))
+
+                    Spacer()
+
+                    Button("完成") {
+                        isPresented = false
+                    }
+                    .foregroundColor(.customAccent)
+                    .font(.system(size: 17, weight: .semibold))
+                }
+                .padding(.horizontal, 20)
+                .padding(.vertical, 16)
+                .background(Color(UIColor.systemBackground))
+                .overlay(
+                    Rectangle()
+                        .frame(height: 1)
+                        .foregroundColor(Color(UIColor.separator)),
+                    alignment: .bottom
+                )
+
+                CustomDatePicker(
+                    selectedDate: $selectedDate,
+                    dataManager: dataManager,
+                    onDateDoubleTapped: { date in
+                        selectedDate = date
+                        isPresented = false
+                    }
+                )
+                .padding(.vertical, 20)
+                .padding(.horizontal, 20)
+            }
+            .background(Color(UIColor.systemBackground))
+            .clipShape(RoundedRectangle(cornerRadius: 32, style: .continuous))
+            .padding(.horizontal, 16)
+            .shadow(color: Color.black.opacity(0.18), radius: 24, x: 0, y: 16)
+        }
+    }
+}
+
 struct CustomDatePicker: View {
     @Binding var selectedDate: Date
     @ObservedObject var dataManager: DataManager
     var onDateDoubleTapped: (Date) -> Void
     
     @State private var currentMonth: Date = Date()
-    @State private var showYearPicker = false
     
-    let days: [String] = ["日", "一", "二", "三", "四", "五", "六"]
+    let days: [String] = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"]
     let columns = Array(repeating: GridItem(.flexible()), count: 7)
     
     var body: some View {
-        VStack(spacing: 20) {
+        VStack(spacing: 16) {
             HStack {
-                Button(action: { currentMonth = getPreviousMonth() }) {
-                    Image(systemName: "chevron.left")
-                }
+                Text(extractYearMonth())
+                    .font(.system(size: 20, weight: .bold))
                 Spacer()
-                
-                Button(action: { showYearPicker = true }) {
-                    Text(extractYearMonth())
-                        .font(.title2.bold())
-                }
-                .sheet(isPresented: $showYearPicker) {
-                    YearPickerView(currentDate: $currentMonth, showYearPicker: $showYearPicker)
-                }
-                
-                Spacer()
-                Button(action: { currentMonth = getNextMonth() }) {
-                    Image(systemName: "chevron.right")
+                HStack(spacing: 16) {
+                    Button(action: { currentMonth = getPreviousMonth() }) {
+                        Image(systemName: "chevron.left")
+                            .foregroundColor(.customAccent)
+                    }
+                    Button(action: { currentMonth = getNextMonth() }) {
+                        Image(systemName: "chevron.right")
+                            .foregroundColor(.customAccent)
+                    }
                 }
             }
-            .padding(.horizontal)
-            
+
             HStack {
                 ForEach(days, id: \.self) { day in
                     Text(day)
-                        .font(.callout)
-                        .fontWeight(.semibold)
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundColor(.secondary)
                         .frame(maxWidth: .infinity)
                 }
             }
-            
-            LazyVGrid(columns: columns, spacing: 0) {
+
+            LazyVGrid(columns: columns, spacing: 8) {
                 ForEach(extractDates()) { dateValue in
-                    DayCell(dateValue: dateValue, 
-                            selectedDate: $selectedDate, 
-                            dataManager: dataManager,
-                            onDateDoubleTapped: onDateDoubleTapped)
-                        .frame(height: 40)
+                    DayCell(
+                        dateValue: dateValue,
+                        selectedDate: $selectedDate,
+                        dataManager: dataManager,
+                        onDateDoubleTapped: onDateDoubleTapped
+                    )
                 }
             }
+        }
+        .onAppear {
+            currentMonth = selectedDate
         }
     }
     
     func extractDates() -> [DateValue] {
         let calendar = Calendar.current
-        
+
         guard let currentMonth = calendar.dateInterval(of: .month, for: self.currentMonth) else {
             return []
         }
-        
+
         let monthStart = currentMonth.start
         let monthEnd = currentMonth.end
-        
+
         let numberOfDays = calendar.dateComponents([.day], from: monthStart, to: monthEnd).day ?? 0
-        
         let firstWeekday = calendar.component(.weekday, from: monthStart)
-        
+
         var days: [DateValue] = []
-        
-        // Add empty cells for days before the first of the month
-        for _ in 1..<firstWeekday {
-            days.append(DateValue(day: -1, date: Date()))
-        }
-        
-        // Add cells for each day of the month
-        for day in 1...numberOfDays {
-            if let date = calendar.date(byAdding: .day, value: day - 1, to: monthStart) {
-                days.append(DateValue(day: day, date: date))
+
+        if let previousMonth = calendar.date(byAdding: .month, value: -1, to: monthStart),
+           let previousInterval = calendar.dateInterval(of: .month, for: previousMonth) {
+            let previousMonthDays = calendar.dateComponents([.day], from: previousInterval.start, to: previousInterval.end).day ?? 0
+            let leadingDays = max(0, firstWeekday - 1)
+            if leadingDays > 0 {
+                let startDay = previousMonthDays - leadingDays + 1
+                for day in startDay...previousMonthDays {
+                    if let date = calendar.date(byAdding: .day, value: day - 1, to: previousInterval.start) {
+                        days.append(DateValue(day: day, date: date, isCurrentMonth: false))
+                    }
+                }
             }
         }
-        
-        // Add empty cells to complete the last week if needed
-        while days.count % 7 != 0 {
-            days.append(DateValue(day: -1, date: Date()))
+
+        for day in 1...numberOfDays {
+            if let date = calendar.date(byAdding: .day, value: day - 1, to: monthStart) {
+                days.append(DateValue(day: day, date: date, isCurrentMonth: true))
+            }
         }
-        
+
+        let remainder = days.count % 7
+        if remainder != 0 {
+            let needed = 7 - remainder
+            for day in 1...needed {
+                if let date = calendar.date(byAdding: .day, value: day - 1, to: monthEnd) {
+                    days.append(DateValue(day: day, date: date, isCurrentMonth: false))
+                }
+            }
+        }
+
         return days
     }
     
     func extractYearMonth() -> String {
         let formatter = DateFormatter()
-        formatter.dateFormat = "YYYY年MM月"
+        formatter.locale = Locale(identifier: "en_US")
+        formatter.dateFormat = "MMMM yyyy"
         return formatter.string(from: currentMonth)
     }
     
@@ -626,112 +758,70 @@ struct CustomDatePicker: View {
     }
 }
 
-struct YearPickerView: View {
-    @Binding var currentDate: Date
-    @Binding var showYearPicker: Bool
-    
-    @State private var selectedYear: Int
-    @State private var selectedMonth: Int
-    
-    init(currentDate: Binding<Date>, showYearPicker: Binding<Bool>) {
-        _currentDate = currentDate
-        _showYearPicker = showYearPicker
-        
-        let calendar = Calendar.current
-        _selectedYear = State(initialValue: calendar.component(.year, from: currentDate.wrappedValue))
-        _selectedMonth = State(initialValue: calendar.component(.month, from: currentDate.wrappedValue))
-    }
-    
-    var body: some View {
-        NavigationView {
-            Form {
-                Picker("年份", selection: $selectedYear) {
-                    ForEach((1970...2070), id: \.self) { year in
-                        Text(String(year)).tag(year)
-                    }
-                }
-                
-                Picker("月份", selection: $selectedMonth) {
-                    ForEach(1...12, id: \.self) { month in
-                        Text(String(format: "%02d", month)).tag(month)
-                    }
-                }
-            }
-            .navigationTitle("選擇年月")
-            .navigationBarItems(trailing: Button("確定") {
-                if let newDate = Calendar.current.date(from: DateComponents(year: selectedYear, month: selectedMonth, day: 1)) {
-                    currentDate = newDate
-                }
-                showYearPicker = false
-            })
-        }
-    }
-}
-
 struct DayCell: View {
     let dateValue: DateValue
     @Binding var selectedDate: Date
     @ObservedObject var dataManager: DataManager
     var onDateDoubleTapped: (Date) -> Void
-    
+
     @State private var lastTapTime: Date?
     @State private var lastTappedDate: Date?
-    
+
     var body: some View {
-        VStack {
-            if dateValue.day != -1 {
-                Text("\(dateValue.day)")
-                    .font(isSelectedDate() ? .body.bold() : .body)
-                    .foregroundColor(getCellColor())
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .background(
+        Button(action: handleTap) {
+            Text("\(dateValue.day)")
+                .font(.system(size: 14, weight: isSelectedDate() ? .bold : .medium))
+                .foregroundColor(textColor())
+                .frame(maxWidth: .infinity, minHeight: 36)
+                .background(
+                    Circle()
+                        .fill(isSelectedDate() ? Color.customAccent : Color.clear)
+                        .frame(width: 36, height: 36)
+                )
+                .overlay(alignment: .bottom) {
+                    if hasTrainingLog() && !isSelectedDate() {
                         Circle()
-                            .fill(isSelectedDate() ? Color.blue.opacity(0.3) : Color.clear)
-                            .frame(width: 32, height: 32)
-                    )
-            } else {
-                Color.clear
-            }
+                            .fill(Color.customAccent.opacity(0.6))
+                            .frame(width: 4, height: 4)
+                            .offset(y: 6)
+                    }
+                }
         }
-        .contentShape(Rectangle())
-        .onTapGesture {
-            let now = Date()
-            
-            if let lastTap = lastTapTime,
-               let lastDate = lastTappedDate,
-               now.timeIntervalSince(lastTap) < 0.5 &&
-               Calendar.current.isDate(lastDate, inSameDayAs: dateValue.date) {
-                // Double tap detected on the same date
-                onDateDoubleTapped(dateValue.date)
-                lastTapTime = nil
-                lastTappedDate = nil
-            } else {
-                // Single tap or first tap of a potential double tap
-                selectedDate = dateValue.date
-                lastTapTime = now
-                lastTappedDate = dateValue.date
-            }
+        .buttonStyle(.plain)
+    }
+
+    private func handleTap() {
+        let now = Date()
+
+        if let lastTap = lastTapTime,
+           let lastDate = lastTappedDate,
+           now.timeIntervalSince(lastTap) < 0.5 &&
+           Calendar.current.isDate(lastDate, inSameDayAs: dateValue.date) {
+            onDateDoubleTapped(dateValue.date)
+            lastTapTime = nil
+            lastTappedDate = nil
+        } else {
+            selectedDate = dateValue.date
+            lastTapTime = now
+            lastTappedDate = dateValue.date
         }
     }
-    
+
     private func isSelectedDate() -> Bool {
-        return Calendar.current.isDate(dateValue.date, inSameDayAs: selectedDate)
+        Calendar.current.isDate(dateValue.date, inSameDayAs: selectedDate)
     }
-    
+
     private func hasTrainingLog() -> Bool {
-        return dataManager.trainingLogs.contains { log in
+        dataManager.trainingLogs.contains { log in
             Calendar.current.isDate(log.date, inSameDayAs: dateValue.date)
         }
     }
-    
-    private func getCellColor() -> Color {
+
+    private func textColor() -> Color {
         if isSelectedDate() {
-            return .primary
-        } else if hasTrainingLog() {
-            return .orange
-        } else {
-            return .primary
+            return .white
         }
+        return dateValue.isCurrentMonth ? .primary : .secondary
     }
 }
 
@@ -739,4 +829,5 @@ struct DateValue: Identifiable {
     var id = UUID()
     var day: Int
     var date: Date
+    var isCurrentMonth: Bool
 }

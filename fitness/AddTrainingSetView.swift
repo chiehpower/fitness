@@ -65,7 +65,7 @@ struct AddTrainingSetView: View {
             .font(.system(size: 16, weight: .bold))
             .foregroundColor(.white)
             .frame(maxWidth: .infinity, minHeight: 52)
-            .background(Color.blue)
+            .background(Color.customAccent)
             .cornerRadius(16)
             .padding(.horizontal, 20)
             .padding(.vertical, 10)

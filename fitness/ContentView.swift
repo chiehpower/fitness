@@ -135,17 +135,24 @@ struct AnalysisView: View {
     @ObservedObject var dataManager: DataManager
     @State private var selectedRange: AnalysisRange = .week
 
+    private let cardCornerRadius: CGFloat = 16
+
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
+            VStack(spacing: 20) {
                 rangePicker
-                summarySection
-                topEquipmentSection
-                topMuscleSection
+
+                summaryCardsSection
+                weightTrendSection
+                muscleDistributionSection
+                insightSection
             }
-            .padding()
+            .padding(.horizontal, 16)
+            .padding(.top, 16)
+            .padding(.bottom, 32)
         }
-        .navigationTitle("分析")
+        .background(Color(UIColor.systemGroupedBackground))
+        .navigationTitle("數據分析")
     }
 
     private var rangePicker: some View {
@@ -157,132 +164,189 @@ struct AnalysisView: View {
         .pickerStyle(SegmentedPickerStyle())
     }
 
-    private var summarySection: some View {
-        let metrics = summaryMetrics()
-        return VStack(alignment: .leading, spacing: 10) {
-            Text("摘要")
-                .font(.headline)
-            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-                ForEach(metrics) { metric in
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text(metric.title)
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                        Text(metric.value)
-                            .font(.title3.bold())
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(12)
-                    .background(Color(UIColor.secondarySystemBackground))
-                    .cornerRadius(12)
-                }
-            }
+    private var summaryCardsSection: some View {
+        let currentLogs = filteredLogs()
+        let currentMinutes = totalMinutes(in: currentLogs)
+        let currentSets = totalSetCount(in: currentLogs)
+        let previousLogs = previousLogs()
+        let previousMinutes = totalMinutes(in: previousLogs)
+        let previousSets = totalSetCount(in: previousLogs)
+
+        return LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 16) {
+            summaryCard(
+                title: "\(selectedRange.title)訓練時長",
+                iconName: "schedule",
+                value: hoursString(fromMinutes: currentMinutes),
+                unit: "小時",
+                trend: trendLabel(current: currentMinutes, previous: previousMinutes)
+            )
+
+            summaryCard(
+                title: "總組數",
+                iconName: "figure.strengthtraining.traditional",
+                value: "\(currentSets)",
+                unit: "組",
+                trend: trendLabel(current: currentSets, previous: previousSets)
+            )
         }
     }
 
-    private var topEquipmentSection: some View {
-        let items = topEquipments()
-        return VStack(alignment: .leading, spacing: 10) {
-            Text("器材使用排行")
-                .font(.headline)
-            if items.isEmpty {
-                Text("尚無訓練紀錄")
-                    .foregroundColor(.secondary)
-            } else {
-                ForEach(items) { item in
-                    barRow(title: item.name, value: item.count, maxValue: items.first?.count ?? 1)
+    private var weightTrendSection: some View {
+        let points = weightTrendPoints()
+        let maxWeight = points.map { $0.value }.max() ?? 0
+        return VStack(alignment: .leading, spacing: 16) {
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("重量成長趨勢")
+                        .font(.headline)
+                    Text(weightTrendSubtitle())
+                        .font(.caption)
+                        .foregroundColor(.secondary)
                 }
-            }
-        }
-    }
-
-    private var topMuscleSection: some View {
-        let items = topMuscles()
-        return VStack(alignment: .leading, spacing: 10) {
-            Text("主肌群分布")
-                .font(.headline)
-            if items.isEmpty {
-                Text("尚無訓練紀錄")
-                    .foregroundColor(.secondary)
-            } else {
-                ForEach(items) { item in
-                    barRow(title: item.name, value: item.count, maxValue: items.first?.count ?? 1)
-                }
-            }
-        }
-    }
-
-    private func barRow(title: String, value: Int, maxValue: Int) -> some View {
-        let ratio = maxValue > 0 ? CGFloat(value) / CGFloat(maxValue) : 0
-        return VStack(alignment: .leading, spacing: 6) {
-            HStack {
-                Text(title)
                 Spacer()
-                Text("\(value) 組")
-                    .foregroundColor(.secondary)
-            }
-            GeometryReader { geometry in
-                ZStack(alignment: .leading) {
-                    Capsule()
-                        .fill(Color(UIColor.systemGray5))
-                        .frame(height: 8)
-                    Capsule()
-                        .fill(Color.customAccent)
-                        .frame(width: geometry.size.width * ratio, height: 8)
+                VStack(alignment: .trailing, spacing: 4) {
+                    Text(weightHighlightText(maxWeight))
+                        .font(.title3.bold())
+                        .foregroundColor(.customAccent)
+                    Text(maxWeight > 0 ? "PR 突破" : "尚無數據")
+                        .font(.caption2.bold())
+                        .foregroundColor(maxWeight > 0 ? .green : .secondary)
                 }
             }
-            .frame(height: 8)
-        }
-        .padding(.vertical, 4)
-    }
 
-    private func summaryMetrics() -> [AnalysisMetric] {
-        let logs = filteredLogs()
-        let totalDays = Set(logs.map { Calendar.current.startOfDay(for: $0.date) }).count
-        let totalTrainingSets = logs.reduce(0) { $0 + $1.sets.count }
-        let totalSets = logs.reduce(0) { partial, log in
-            partial + log.sets.reduce(0) { $0 + $1.sets.count }
-        }
-        let totalWeight = logs.reduce(0.0) { partial, log in
-            partial + log.sets.reduce(0.0) { sum, trainingSet in
-                sum + trainingSet.sets.reduce(0.0) { $0 + $1.weight }
+            WeightTrendChart(points: points, accentColor: .customAccent)
+                .frame(height: 160)
+
+            HStack {
+                ForEach(points) { point in
+                    Text(point.label)
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                    if point.id != points.last?.id {
+                        Spacer()
+                    }
+                }
             }
         }
-
-        return [
-            AnalysisMetric(title: "訓練天數", value: "\(totalDays)"),
-            AnalysisMetric(title: "訓練組數", value: "\(totalTrainingSets)"),
-            AnalysisMetric(title: "總次數(子組)", value: "\(totalSets)"),
-            AnalysisMetric(title: "總重量(kg)", value: String(format: "%.1f", totalWeight))
-        ]
+        .padding(16)
+        .background(Color(UIColor.systemBackground))
+        .cornerRadius(cardCornerRadius)
+        .shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: 6)
     }
 
-    private func topEquipments(limit: Int = 5) -> [CountItem] {
-        var counts: [String: Int] = [:]
-        for log in filteredLogs() {
-            for set in log.sets {
-                counts[set.equipment.name, default: 0] += set.sets.count
+    private var muscleDistributionSection: some View {
+        let segments = muscleDistributionSegments()
+        let totalPercentage = segments.reduce(0.0) { $0 + $1.percentage }
+        return VStack(alignment: .leading, spacing: 16) {
+            Text("部位訓練分佈")
+                .font(.headline)
+
+            HStack(spacing: 20) {
+                DonutChartView(segments: segments, accentColor: .customAccent)
+                    .frame(width: 120, height: 120)
+                    .overlay {
+                        VStack(spacing: 4) {
+                            Text("總計")
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                            Text(totalPercentage == 0 ? "0%" : "100%")
+                                .font(.headline)
+                        }
+                    }
+
+                VStack(alignment: .leading, spacing: 10) {
+                    if segments.isEmpty {
+                        Text("尚無訓練紀錄")
+                            .foregroundColor(.secondary)
+                            .font(.caption)
+                    } else {
+                        ForEach(segments) { segment in
+                            HStack {
+                                HStack(spacing: 8) {
+                                    Circle()
+                                        .fill(segment.color)
+                                        .frame(width: 8, height: 8)
+                                    Text(segment.name)
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
+                                Spacer()
+                                Text(String(format: "%.0f%%", segment.percentage))
+                                    .font(.caption.bold())
+                            }
+                        }
+                    }
+                }
             }
         }
-        return counts
-            .map { CountItem(name: $0.key, count: $0.value) }
-            .sorted { $0.count > $1.count }
-            .prefix(limit)
-            .map { $0 }
+        .padding(16)
+        .background(Color(UIColor.systemBackground))
+        .cornerRadius(cardCornerRadius)
+        .shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: 6)
     }
 
-    private func topMuscles(limit: Int = 5) -> [CountItem] {
-        var counts: [String: Int] = [:]
-        for log in filteredLogs() {
-            for set in log.sets {
-                counts[set.mainMuscle, default: 0] += set.sets.count
+    private var insightSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .top, spacing: 10) {
+                Image(systemName: "lightbulb")
+                    .foregroundColor(.customAccent)
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("訓練洞察")
+                        .font(.subheadline.bold())
+                        .foregroundColor(.customAccent)
+                    Text(insightText())
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
         }
-        return counts
-            .map { CountItem(name: $0.key, count: $0.value) }
-            .sorted { $0.count > $1.count }
-            .prefix(limit)
-            .map { $0 }
+        .padding(16)
+        .background(Color.customAccent.opacity(0.12))
+        .cornerRadius(cardCornerRadius)
+        .overlay(
+            RoundedRectangle(cornerRadius: cardCornerRadius)
+                .stroke(Color.customAccent.opacity(0.2), lineWidth: 1)
+        )
+    }
+
+    private func summaryCard(title: String, iconName: String, value: String, unit: String, trend: TrendLabel?) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 6) {
+                Image(systemName: iconName)
+                    .font(.caption)
+                    .foregroundColor(.customAccent)
+                Text(title)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+
+            HStack(alignment: .firstTextBaseline, spacing: 4) {
+                Text(value)
+                    .font(.title2.bold())
+                Text(unit)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+
+            if let trend = trend {
+                HStack(spacing: 4) {
+                    Image(systemName: trend.isPositive ? "arrow.up" : "arrow.down")
+                    Text(trend.text)
+                }
+                .font(.caption2.bold())
+                .foregroundColor(trend.isPositive ? .green : .orange)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background((trend.isPositive ? Color.green : Color.orange).opacity(0.12))
+                .cornerRadius(12)
+            }
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color(UIColor.systemBackground))
+        .cornerRadius(cardCornerRadius)
+        .shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: 6)
     }
 
     private func filteredLogs() -> [TrainingLog] {
@@ -290,6 +354,284 @@ struct AnalysisView: View {
             return dataManager.trainingLogs
         }
         return dataManager.trainingLogs.filter { interval.contains($0.date) }
+    }
+
+    private func previousLogs() -> [TrainingLog] {
+        guard let interval = selectedRange.previousDateInterval() else {
+            return []
+        }
+        return dataManager.trainingLogs.filter { interval.contains($0.date) }
+    }
+
+    private func totalMinutes(in logs: [TrainingLog]) -> Int {
+        logs.reduce(0) { partial, log in
+            partial + log.sets.reduce(0) { sum, trainingSet in
+                sum + trainingSet.sets.reduce(0) { $0 + $1.time }
+            }
+        }
+    }
+
+    private func totalSetCount(in logs: [TrainingLog]) -> Int {
+        logs.reduce(0) { partial, log in
+            partial + log.sets.reduce(0) { $0 + $1.sets.count }
+        }
+    }
+
+    private func hoursString(fromMinutes minutes: Int) -> String {
+        let hours = Double(minutes) / 60.0
+        return String(format: "%.1f", hours)
+    }
+
+    private func trendLabel(current: Int, previous: Int) -> TrendLabel? {
+        guard previous > 0 else {
+            return nil
+        }
+        let change = (Double(current) - Double(previous)) / Double(previous)
+        let percentage = abs(change) * 100
+        return TrendLabel(text: String(format: "%.0f%%", percentage), isPositive: change >= 0)
+    }
+
+    private func weightTrendPoints() -> [TrendPoint] {
+        let calendar = Calendar.current
+        let now = Date()
+        let logs = lastSixMonthsLogs()
+        let equipmentName = mostUsedEquipmentName(in: logs)
+
+        return (0..<6).map { index in
+            let monthDate = calendar.date(byAdding: .month, value: -(5 - index), to: now) ?? now
+            let label = monthLabel(for: monthDate)
+            let value = maxWeight(for: monthDate, equipmentName: equipmentName, in: logs)
+            return TrendPoint(label: label, value: value)
+        }
+    }
+
+    private func lastSixMonthsLogs() -> [TrainingLog] {
+        let calendar = Calendar.current
+        guard let start = calendar.date(byAdding: .month, value: -5, to: Date()) else {
+            return dataManager.trainingLogs
+        }
+        return dataManager.trainingLogs.filter { $0.date >= start }
+    }
+
+    private func mostUsedEquipmentName(in logs: [TrainingLog]) -> String? {
+        var counts: [String: Int] = [:]
+        for log in logs {
+            for set in log.sets {
+                counts[set.equipment.name, default: 0] += set.sets.count
+            }
+        }
+        return counts.sorted { $0.value > $1.value }.first?.key
+    }
+
+    private func maxWeight(for monthDate: Date, equipmentName: String?, in logs: [TrainingLog]) -> Double {
+        guard let equipmentName = equipmentName else {
+            return 0
+        }
+        let calendar = Calendar.current
+        guard let monthInterval = calendar.dateInterval(of: .month, for: monthDate) else {
+            return 0
+        }
+        let weights = logs
+            .filter { monthInterval.contains($0.date) }
+            .flatMap { $0.sets }
+            .filter { $0.equipment.name == equipmentName }
+            .flatMap { $0.sets }
+            .map { $0.weight }
+        return weights.max() ?? 0
+    }
+
+    private func monthLabel(for date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "zh_TW")
+        formatter.dateFormat = "M月"
+        return formatter.string(from: date)
+    }
+
+    private func weightTrendSubtitle() -> String {
+        if let name = mostUsedEquipmentName(in: lastSixMonthsLogs()) {
+            return "\(name) · 過去 6 個月"
+        }
+        return "尚無器材資料"
+    }
+
+    private func weightHighlightText(_ value: Double) -> String {
+        if value > 0 {
+            return String(format: "%.0fkg", value)
+        }
+        return "--"
+    }
+
+    private func muscleDistributionSegments() -> [MuscleSegment] {
+        var counts: [String: Int] = [:]
+        for log in filteredLogs() {
+            for set in log.sets {
+                counts[set.mainMuscle, default: 0] += set.sets.count
+            }
+        }
+
+        let total = counts.values.reduce(0, +)
+        guard total > 0 else {
+            return []
+        }
+
+        let colors: [Color] = [
+            .customAccent,
+            Color(UIColor.systemIndigo),
+            Color(UIColor.systemOrange),
+            Color(UIColor.systemPink)
+        ]
+
+        return counts
+            .sorted { $0.value > $1.value }
+            .prefix(4)
+            .enumerated()
+            .map { index, item in
+                let percentage = Double(item.value) / Double(total) * 100
+                return MuscleSegment(name: item.key, percentage: percentage, color: colors[index % colors.count])
+            }
+    }
+
+    private func insightText() -> String {
+        let current = totalMinutes(in: filteredLogs())
+        let previous = totalMinutes(in: previousLogs())
+        guard previous > 0 else {
+            return "目前的訓練資料還不多，持續紀錄就能看到更完整的趨勢。"
+        }
+        let change = (Double(current) - Double(previous)) / Double(previous)
+        let percentage = abs(change) * 100
+        let currentLabel = selectedRange.title
+        let previousLabel = selectedRange.previousTitle
+        if change >= 0 {
+            return String(format: "你%@的訓練時長比%@提升了 %.0f%%。建議安排適度休息，讓強度穩定成長。", currentLabel, previousLabel, percentage)
+        }
+        return String(format: "你%@的訓練時長比%@下降了 %.0f%%。可以挑一個重點部位，慢慢把節奏拉回來。", currentLabel, previousLabel, percentage)
+    }
+}
+
+private struct TrendLabel {
+    let text: String
+    let isPositive: Bool
+}
+
+private struct TrendPoint: Identifiable {
+    let id = UUID()
+    let label: String
+    let value: Double
+}
+
+private struct MuscleSegment: Identifiable {
+    let id = UUID()
+    let name: String
+    let percentage: Double
+    let color: Color
+}
+
+private struct WeightTrendChart: View {
+    let points: [TrendPoint]
+    let accentColor: Color
+
+    var body: some View {
+        GeometryReader { geometry in
+            let maxValue = points.map { $0.value }.max() ?? 0
+            let height = geometry.size.height
+            let width = geometry.size.width
+            let step = points.count > 1 ? width / CGFloat(points.count - 1) : 0
+
+            let mappedPoints = points.enumerated().map { index, point in
+                CGPoint(
+                    x: CGFloat(index) * step,
+                    y: yPosition(for: point.value, maxValue: maxValue, height: height)
+                )
+            }
+
+            ZStack {
+                if mappedPoints.count > 1 {
+                    Path { path in
+                        path.move(to: CGPoint(x: mappedPoints.first?.x ?? 0, y: height))
+                        for point in mappedPoints {
+                            path.addLine(to: point)
+                        }
+                        path.addLine(to: CGPoint(x: mappedPoints.last?.x ?? 0, y: height))
+                        path.closeSubpath()
+                    }
+                    .fill(
+                        LinearGradient(
+                            colors: [accentColor.opacity(0.2), accentColor.opacity(0.0)],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+
+                    Path { path in
+                        guard let first = mappedPoints.first else {
+                            return
+                        }
+                        path.move(to: first)
+                        for point in mappedPoints.dropFirst() {
+                            path.addLine(to: point)
+                        }
+                    }
+                    .stroke(accentColor, style: StrokeStyle(lineWidth: 3, lineCap: .round, lineJoin: .round))
+
+                    ForEach(mappedPoints.indices, id: \.self) { index in
+                        let point = mappedPoints[index]
+                        Circle()
+                            .fill(accentColor)
+                            .frame(width: index == mappedPoints.count - 1 ? 9 : 6, height: index == mappedPoints.count - 1 ? 9 : 6)
+                            .overlay(Circle().stroke(Color.white, lineWidth: 2))
+                            .position(point)
+                    }
+                } else {
+                    Rectangle()
+                        .fill(Color(UIColor.systemGray5))
+                }
+            }
+        }
+    }
+
+    private func yPosition(for value: Double, maxValue: Double, height: CGFloat) -> CGFloat {
+        guard maxValue > 0 else {
+            return height * 0.75
+        }
+        let normalized = value / maxValue
+        return height * (0.15 + (1 - normalized) * 0.7)
+    }
+}
+
+private struct DonutChartView: View {
+    let segments: [MuscleSegment]
+    let accentColor: Color
+
+    var body: some View {
+        ZStack {
+            Circle()
+                .stroke(Color(UIColor.systemGray5), lineWidth: 10)
+
+            ForEach(Array(segments.enumerated()), id: \.element.id) { index, segment in
+                Circle()
+                    .trim(from: startPoint(for: index), to: endPoint(for: index))
+                    .stroke(segment.color, style: StrokeStyle(lineWidth: 10, lineCap: .round))
+                    .rotationEffect(.degrees(-90))
+            }
+        }
+    }
+
+    private func startPoint(for index: Int) -> CGFloat {
+        let total = segments.reduce(0.0) { $0 + $1.percentage }
+        guard total > 0 else {
+            return 0
+        }
+        let previous = segments.prefix(index).reduce(0.0) { $0 + $1.percentage }
+        return CGFloat(previous / total)
+    }
+
+    private func endPoint(for index: Int) -> CGFloat {
+        let total = segments.reduce(0.0) { $0 + $1.percentage }
+        guard total > 0 else {
+            return 0
+        }
+        let current = segments.prefix(index + 1).reduce(0.0) { $0 + $1.percentage }
+        return CGFloat(current / total)
     }
 }
 
@@ -306,6 +648,15 @@ enum AnalysisRange: CaseIterable {
         }
     }
 
+    var previousTitle: String {
+        switch self {
+        case .week:
+            return "上週"
+        case .month:
+            return "上月"
+        }
+    }
+
     func dateInterval(reference: Date = Date()) -> DateInterval? {
         let calendar = Calendar.current
         switch self {
@@ -315,16 +666,26 @@ enum AnalysisRange: CaseIterable {
             return calendar.dateInterval(of: .month, for: reference)
         }
     }
-}
 
-struct AnalysisMetric: Identifiable {
-    let id = UUID()
-    let title: String
-    let value: String
-}
-
-struct CountItem: Identifiable {
-    let id = UUID()
-    let name: String
-    let count: Int
+    func previousDateInterval(reference: Date = Date()) -> DateInterval? {
+        let calendar = Calendar.current
+        switch self {
+        case .week:
+            guard let current = calendar.dateInterval(of: .weekOfYear, for: reference) else {
+                return nil
+            }
+            guard let previousStart = calendar.date(byAdding: .weekOfYear, value: -1, to: current.start) else {
+                return nil
+            }
+            return calendar.dateInterval(of: .weekOfYear, for: previousStart)
+        case .month:
+            guard let current = calendar.dateInterval(of: .month, for: reference) else {
+                return nil
+            }
+            guard let previousStart = calendar.date(byAdding: .month, value: -1, to: current.start) else {
+                return nil
+            }
+            return calendar.dateInterval(of: .month, for: previousStart)
+        }
+    }
 }
