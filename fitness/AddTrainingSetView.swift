@@ -55,18 +55,21 @@ struct AddTrainingSetView: View {
         }
         .accentColor(.customAccent)
         .safeAreaInset(edge: .bottom) {
-            Button("SAVE SET") {
+            Button(action: {
                 if validateInput() {
                     saveTrainingSet()
                 } else {
                     showAlert = true
                 }
+            }) {
+                Text("SAVE SET")
+                    .font(.system(size: 16, weight: .bold))
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity, minHeight: 52)
+                    .background(Color.customAccent)
+                    .cornerRadius(16)
             }
-            .font(.system(size: 16, weight: .bold))
-            .foregroundColor(.white)
-            .frame(maxWidth: .infinity, minHeight: 52)
-            .background(Color.customAccent)
-            .cornerRadius(16)
+            .contentShape(Rectangle())
             .padding(.horizontal, 20)
             .padding(.vertical, 10)
             .background(Color(UIColor.systemBackground))
@@ -91,6 +94,9 @@ struct AddTrainingSetView: View {
         if let tagId = preselectedNfcTagId, selectedEquipment == nil {
             if let equipment = dataManager.equipment(forNfcTagId: tagId) {
                 selectedEquipment = equipment
+                selectedMainMuscle = equipment.mainPart
+                selectedSubMuscle = ""
+                selectedVariant = ""
                 return
             } else {
                 alertMessage = "找不到對應的器材，請手動選擇"
@@ -101,7 +107,12 @@ struct AddTrainingSetView: View {
         if selectedEquipment == nil {
             let savedId = UserDefaults.standard.string(forKey: "lastSelectedEquipmentId")
             if let savedId = savedId, let uuid = UUID(uuidString: savedId) {
-                selectedEquipment = dataManager.equipments.first { $0.id == uuid }
+                if let equipment = dataManager.equipments.first(where: { $0.id == uuid }) {
+                    selectedEquipment = equipment
+                    selectedMainMuscle = equipment.mainPart
+                    selectedSubMuscle = ""
+                    selectedVariant = ""
+                }
             }
         }
     }
@@ -112,21 +123,28 @@ struct AddTrainingSetView: View {
     }
 
     private var selectionGrid: some View {
-        let subMuscles = dataManager.muscles.first(where: { $0.name == selectedMainMuscle })?.subMuscles ?? []
+        let availableMuscleGroups = selectedEquipment?.muscleTags ?? []
         return VStack(spacing: 12) {
             HStack(spacing: 12) {
                 labeledMenu(title: "EQUIPMENT", value: selectedEquipment?.name ?? "選擇") {
                     ForEach(dataManager.equipments) { equipment in
                         Button(equipment.name) {
                             selectedEquipment = equipment
+                            selectedMainMuscle = equipment.mainPart
+                            selectedSubMuscle = ""
+                            selectedVariant = ""
                             UserDefaults.standard.set(equipment.id.uuidString, forKey: "lastSelectedEquipmentId")
                         }
                     }
                 }
-                labeledMenu(title: "BODY PART", value: selectedMainMuscle.isEmpty ? "選擇" : selectedMainMuscle) {
-                    ForEach(dataManager.muscles) { muscle in
-                        Button(muscle.name) {
-                            selectedMainMuscle = muscle.name
+                labeledMenu(
+                    title: "BODY PART",
+                    value: selectedMainMuscle.isEmpty ? "選擇" : selectedMainMuscle,
+                    isEnabled: selectedEquipment != nil
+                ) {
+                    if let equipment = selectedEquipment {
+                        Button(equipment.mainPart) {
+                            selectedMainMuscle = equipment.mainPart
                             selectedSubMuscle = ""
                         }
                     }
@@ -137,12 +155,12 @@ struct AddTrainingSetView: View {
                 labeledMenu(
                     title: "MUSCLE GROUP",
                     value: selectedSubMuscle.isEmpty ? "不指定" : selectedSubMuscle,
-                    isEnabled: !selectedMainMuscle.isEmpty && !subMuscles.isEmpty
+                    isEnabled: !availableMuscleGroups.isEmpty
                 ) {
                     Button("不指定") { selectedSubMuscle = "" }
-                    ForEach(subMuscles, id: \.name) { subMuscle in
-                        Button(subMuscle.name) {
-                            selectedSubMuscle = subMuscle.name
+                    ForEach(availableMuscleGroups, id: \.self) { tag in
+                        Button(tag) {
+                            selectedSubMuscle = tag
                         }
                     }
                 }
@@ -153,15 +171,16 @@ struct AddTrainingSetView: View {
     }
 
     private var postureRow: some View {
-        labeledMenu(
+        let availableActions = selectedEquipment?.actions ?? []
+        return labeledMenu(
             title: "FORM / POSTURE",
             value: selectedVariant.isEmpty ? "不指定" : selectedVariant,
-            isEnabled: !dataManager.variants.isEmpty
+            isEnabled: !availableActions.isEmpty
         ) {
             Button("不指定") { selectedVariant = "" }
-            ForEach(dataManager.variants, id: \.self) { variant in
-                Button(variant) {
-                    selectedVariant = variant
+            ForEach(availableActions, id: \.self) { action in
+                Button(action) {
+                    selectedVariant = action
                 }
             }
         }
@@ -253,33 +272,37 @@ struct AddTrainingSetView: View {
             Text("REPS")
                 .font(.caption)
                 .foregroundColor(.secondary)
-            HStack {
-                Spacer()
-                Text("\(reps)")
-                    .font(.system(size: 18, weight: .semibold))
-                Spacer()
+            Menu {
+                Button("1") { reps = 1 }
+                Button("5") { reps = 5 }
+                Button("8") { reps = 8 }
+                Button("10") { reps = 10 }
+                Button("12") { reps = 12 }
+                Button("15") { reps = 15 }
+                Button("20") { reps = 20 }
+                Button("自訂 +1") { reps += 1 }
+                Button("自訂 -1") { reps = max(1, reps - 1) }
+            } label: {
+                HStack {
+                    Spacer()
+                    Text("\(reps)")
+                        .font(.system(size: 18, weight: .semibold))
+                    Spacer()
+                    Image(systemName: "chevron.down")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                .padding(.vertical, 10)
+                .padding(.horizontal, 12)
+                .background(Color.white)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(Color.gray.opacity(0.2), lineWidth: 1)
+                )
+                .cornerRadius(12)
             }
-            .padding(.vertical, 10)
-            .padding(.horizontal, 12)
-            .background(Color.white)
-            .overlay(
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(Color.gray.opacity(0.2), lineWidth: 1)
-            )
-            .cornerRadius(12)
         }
         .frame(maxWidth: .infinity)
-        .contextMenu {
-            Button("1") { reps = 1 }
-            Button("5") { reps = 5 }
-            Button("8") { reps = 8 }
-            Button("10") { reps = 10 }
-            Button("12") { reps = 12 }
-            Button("15") { reps = 15 }
-            Button("20") { reps = 20 }
-            Button("自訂 +1") { reps += 1 }
-            Button("自訂 -1") { reps = max(1, reps - 1) }
-        }
     }
 
     // selectionRow removed in favor of two-row selection layout

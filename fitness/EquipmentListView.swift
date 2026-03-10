@@ -466,12 +466,6 @@ private struct QuickAddEquipmentView: View {
         .navigationTitle("新增器材")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .cancellationAction) {
-                Button("取消") {
-                    isPresented = false
-                }
-                .foregroundColor(.customAccent)
-            }
             ToolbarItem(placement: .confirmationAction) {
                 Button("儲存") {
                     onSave()
@@ -708,6 +702,7 @@ struct EquipmentCard: View {
                             .font(.footnote)
                             .foregroundColor(.secondary)
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
 
                 HStack(spacing: 6) {
@@ -718,6 +713,7 @@ struct EquipmentCard: View {
                         .font(.footnote)
                         .foregroundColor(.secondary)
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
 
                 HStack(alignment: .top, spacing: 6) {
                     Image(systemName: "figure.strengthtraining.traditional")
@@ -727,6 +723,7 @@ struct EquipmentCard: View {
                         .font(.footnote)
                         .foregroundColor(.secondary)
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
 
                 Button(action: onShowDetails) {
                     Text("查看詳情")
@@ -739,6 +736,7 @@ struct EquipmentCard: View {
                 }
                 .padding(.top, 4)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
             .padding(16)
         }
         .background(Color.white)

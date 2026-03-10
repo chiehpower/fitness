@@ -8,6 +8,8 @@ struct TrainingLogView: View {
     @State private var selectedDate = Date()
     @State private var showingAddSet = false
     @State private var showingCalendar = false
+    @State private var showingWheel = false
+    @State private var isEditingSets = false
     
     var body: some View {
         VStack(spacing: 0) {
@@ -76,6 +78,9 @@ struct TrainingLogView: View {
                 isPresented: $showingCalendar
             )
         }
+        .sheet(isPresented: $showingWheel) {
+            FitnessWheelView(isPresented: $showingWheel)
+        }
         .onChange(of: appState.shouldShowAddTrainingSet) { _, newValue in
             if newValue {
                 selectedDate = Date()
@@ -87,35 +92,38 @@ struct TrainingLogView: View {
     private var headerView: some View {
         VStack(spacing: 12) {
             HStack {
-                Button(action: {
-                    showingCalendar = true
-                }) {
-                    Image(systemName: "calendar")
-                        .foregroundColor(.customAccent)
+                HStack(spacing: 8) {
+                    Button(action: {
+                        showingCalendar = true
+                    }) {
+                        Image(systemName: "calendar")
+                            .foregroundColor(.customAccent)
+                    }
                 }
-
-                Spacer()
+                .frame(width: 64, alignment: .leading)
 
                 Text("訓練記錄")
                     .font(.headline)
+                    .frame(maxWidth: .infinity, alignment: .center)
 
-                Spacer()
+                HStack(spacing: 8) {
+                    Button(action: {
+                        selectedDate = Date()
+                    }) {
+                        Text("今天")
+                            .font(.subheadline.bold())
+                            .foregroundColor(Calendar.current.isDateInToday(selectedDate) ? .secondary : .customAccent)
+                    }
+                    .disabled(Calendar.current.isDateInToday(selectedDate))
 
-                Button(action: {
-                    selectedDate = Date()
-                }) {
-                    Text("今天")
-                        .font(.subheadline.bold())
-                        .foregroundColor(Calendar.current.isDateInToday(selectedDate) ? .secondary : .customAccent)
+                    Button(action: {
+                        showingWheel = true
+                    }) {
+                        Image(systemName: "sparkles")
+                            .foregroundColor(.orange)
+                    }
                 }
-                .disabled(Calendar.current.isDateInToday(selectedDate))
-
-                Button(action: {
-                    showingAddSet = true
-                }) {
-                    Image(systemName: "calendar.badge.plus")
-                        .foregroundColor(.customAccent)
-                }
+                .frame(width: 64, alignment: .trailing)
             }
             .padding(.horizontal, 16)
             .padding(.top, 8)
@@ -141,6 +149,11 @@ struct TrainingLogView: View {
                         Text("\(Calendar.current.component(.day, from: date))")
                             .font(.subheadline.bold())
                             .foregroundColor(isSelected ? .white : .primary)
+                        if hasTrainingLog(on: date) {
+                            Circle()
+                                .fill(isSelected ? Color.white : Color.customAccent)
+                                .frame(width: 4, height: 4)
+                        }
                     }
                     .frame(width: cellWidth, height: 60)
                     .background(isSelected ? Color.customAccent : Color.white)
@@ -169,6 +182,11 @@ struct TrainingLogView: View {
             Text(formatDaySummaryDate(selectedDate))
                 .font(.footnote)
                 .foregroundColor(.secondary)
+            Button(isEditingSets ? "完成" : "編輯") {
+                isEditingSets.toggle()
+            }
+            .font(.footnote.bold())
+            .foregroundColor(.customAccent)
         }
     }
 
@@ -187,11 +205,12 @@ struct TrainingLogView: View {
 
     private func workoutCard(for group: EquipmentGroup) -> some View {
         let sets = flattenedSets(for: group)
-        let primaryMuscle = group.trainingSets.first?.mainMuscle ?? ""
-        let secondaryMuscle = group.trainingSets.first?.subMuscle ?? ""
+        let primaryMuscle = group.equipment.mainPart
+        let secondaryMuscle = group.equipment.muscleTags.first ?? ""
         return VStack(spacing: 0) {
             HStack(spacing: 16) {
                 cardThumbnail(for: group.equipment)
+                    .frame(width: 72, height: 72, alignment: .leading)
 
                 VStack(alignment: .leading, spacing: 6) {
                     Text(group.equipment.name)
@@ -206,9 +225,7 @@ struct TrainingLogView: View {
                     }
                 }
 
-                Spacer()
-                Image(systemName: "ellipsis")
-                    .foregroundColor(.secondary)
+                Spacer(minLength: 0)
             }
             .padding(16)
 
@@ -218,6 +235,9 @@ struct TrainingLogView: View {
                     tableHeader("重量 (kg)")
                     tableHeader("次數")
                     tableHeader("時間", alignRight: true)
+                    if isEditingSets {
+                        tableHeader("", alignRight: true)
+                    }
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 8)
@@ -230,6 +250,16 @@ struct TrainingLogView: View {
                         tableCell("\(formatWeight(row.weight))")
                         tableCell("\(row.reps)")
                         tableCell(row.timeString, alignRight: true, isSecondary: true)
+                        if isEditingSets {
+                            Button(action: {
+                                deleteSet(row)
+                            }) {
+                                Image(systemName: "trash")
+                                    .font(.caption)
+                                    .foregroundColor(.red)
+                            }
+                            .frame(maxWidth: .infinity, alignment: .trailing)
+                        }
                     }
                     .padding(.horizontal, 16)
                     .padding(.vertical, 10)
@@ -318,6 +348,10 @@ struct TrainingLogView: View {
         }
     }
 
+    private func hasTrainingLog(on date: Date) -> Bool {
+        dataManager.trainingLogs.contains { Calendar.current.isDate($0.date, inSameDayAs: date) }
+    }
+
     private func handleWeekSwipe(_ value: DragGesture.Value) {
         let horizontal = value.translation.width
         let vertical = value.translation.height
@@ -359,8 +393,15 @@ struct TrainingLogView: View {
         var rows: [SetRow] = []
         var index = 1
         for trainingSet in group.trainingSets {
-            for set in trainingSet.sets {
-                rows.append(SetRow(index: index, weight: set.weight, reps: set.reps, timeString: formatTime(set.time)))
+            for (setIndex, set) in trainingSet.sets.enumerated() {
+                rows.append(SetRow(
+                    index: index,
+                    weight: set.weight,
+                    reps: set.reps,
+                    timeString: formatTime(set.time),
+                    trainingSetId: trainingSet.id,
+                    setIndex: setIndex
+                ))
                 index += 1
             }
         }
@@ -373,6 +414,35 @@ struct TrainingLogView: View {
         let weight: Double
         let reps: Int
         let timeString: String
+        let trainingSetId: UUID
+        let setIndex: Int
+    }
+
+    private func deleteSet(_ row: SetRow) {
+        guard let logIndex = dataManager.trainingLogs.firstIndex(where: { Calendar.current.isDate($0.date, inSameDayAs: selectedDate) }) else {
+            return
+        }
+
+        var log = dataManager.trainingLogs[logIndex]
+        guard let trainingSetIndex = log.sets.firstIndex(where: { $0.id == row.trainingSetId }) else {
+            return
+        }
+
+        if row.setIndex < log.sets[trainingSetIndex].sets.count {
+            log.sets[trainingSetIndex].sets.remove(at: row.setIndex)
+        }
+
+        if log.sets[trainingSetIndex].sets.isEmpty {
+            log.sets.remove(at: trainingSetIndex)
+        }
+
+        if log.sets.isEmpty {
+            dataManager.trainingLogs.remove(at: logIndex)
+        } else {
+            dataManager.trainingLogs[logIndex] = log
+        }
+
+        dataManager.saveTrainingLogs()
     }
 
     private func deleteTrainingSets(within sets: [TrainingSet], at offsets: IndexSet) {
@@ -577,6 +647,286 @@ struct EquipmentGroup: Identifiable {
     let id: UUID
     let equipment: Equipment
     let trainingSets: [TrainingSet]
+}
+
+private struct WheelOption: Identifiable {
+    let id = UUID()
+    let title: String
+    let subtitle: String
+    let color: Color
+}
+
+private struct WheelSliceShape: Shape {
+    let startAngle: Angle
+    let endAngle: Angle
+    let innerRadiusRatio: CGFloat
+    let outerRadiusExtension: CGFloat
+
+    func path(in rect: CGRect) -> Path {
+        let center = CGPoint(x: rect.midX, y: rect.midY)
+        let outerRadius = (min(rect.width, rect.height) / 2) + outerRadiusExtension
+        let innerRadius = outerRadius * innerRadiusRatio
+
+        var path = Path()
+        path.addArc(
+            center: center,
+            radius: outerRadius,
+            startAngle: startAngle,
+            endAngle: endAngle,
+            clockwise: false
+        )
+        path.addArc(
+            center: center,
+            radius: innerRadius,
+            startAngle: endAngle,
+            endAngle: startAngle,
+            clockwise: true
+        )
+        path.closeSubpath()
+        return path
+    }
+}
+
+private struct FitnessWheelView: View {
+    @Binding var isPresented: Bool
+    @State private var rotation: Double = 0
+    @State private var isSpinning = false
+    @State private var showResult = false
+    @State private var selectedOption: WheelOption?
+    @State private var ringSpin = false
+
+    private let options: [WheelOption] = [
+        WheelOption(title: "去運動！", subtitle: "今天是爆發日", color: Color.customAccent),
+        WheelOption(title: "輕量運動", subtitle: "維持節奏", color: Color(UIColor.systemOrange)),
+        WheelOption(title: "超級組訓練", subtitle: "挑戰極限", color: Color(UIColor.systemPink)),
+        WheelOption(title: "休息一天", subtitle: "恢復也是訓練", color: Color(UIColor.systemIndigo)),
+    ]
+
+    var body: some View {
+        ZStack {
+            Color(UIColor.systemGroupedBackground)
+                .ignoresSafeArea()
+
+            VStack(spacing: 12) {
+                HStack {
+                    Spacer()
+                    Button(action: { isPresented = false }) {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundColor(.white)
+                            .frame(width: 32, height: 32)
+                            .background(Color.black.opacity(0.35))
+                            .clipShape(Circle())
+                    }
+                }
+                .padding(.horizontal, 20)
+                .padding(.top, 8)
+
+                Spacer()
+
+                VStack(spacing: 16) {
+                    VStack(spacing: 6) {
+                        Text("Fitness Wheel")
+                            .font(.title2.bold())
+                        Text("今天運動抽籤")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    .offset(y: -40)
+
+                    ZStack {
+                        wheelView
+                            .frame(width: 260, height: 260)
+                            .rotationEffect(.degrees(rotation))
+                    }
+                    .overlay(alignment: .top) {
+                        pointerView
+                            .offset(y: -45)
+                    }
+
+                    Button(action: spin) {
+                        Text(isSpinning ? "旋轉中..." : "開始抽")
+                            .font(.headline.bold())
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 14)
+                            .background(Color.customAccent)
+                            .foregroundColor(.white)
+                            .cornerRadius(24)
+                            .shadow(color: Color.customAccent.opacity(0.3), radius: 10, x: 0, y: 6)
+                    }
+                    .disabled(isSpinning)
+                    .padding(.top, 20)
+                }
+                .padding(.horizontal, 24)
+
+                Spacer()
+            }
+
+            if showResult, let option = selectedOption {
+                resultOverlay(option: option)
+            }
+        }
+        .onAppear {
+            ringSpin = true
+        }
+    }
+
+    private func spin() {
+        guard !isSpinning else { return }
+        isSpinning = true
+        showResult = false
+
+        let count = options.count
+        let segment = 360.0 / Double(count)
+        let targetIndex = Int.random(in: 0..<count)
+        let current = rotation.truncatingRemainder(dividingBy: 360)
+        let desiredCenter = -segment * (Double(targetIndex) + 0.5)
+        let jitter = Double.random(in: -segment * 0.35 ... segment * 0.35)
+        let desired = desiredCenter + jitter
+        let delta = desired - current
+        let turns = 5.0
+        let finalRotation = rotation + (360 * turns) + delta
+
+        withAnimation(.timingCurve(0.2, 0.9, 0.1, 1.0, duration: 4.0)) {
+            rotation = finalRotation
+        }
+
+        selectedOption = options[targetIndex]
+        DispatchQueue.main.asyncAfter(deadline: .now() + 4.1) {
+            showResult = true
+            isSpinning = false
+        }
+    }
+
+    private var wheelView: some View {
+        GeometryReader { geometry in
+            ZStack {
+                Circle()
+                    .stroke(Color.customAccent.opacity(0.2), lineWidth: 12)
+
+                ForEach(options.indices, id: \.self) { index in
+                    wheelSlice(for: index)
+                    wheelLabel(for: index, in: geometry.size)
+                }
+
+                Circle()
+                    .stroke(style: StrokeStyle(lineWidth: 6, lineCap: .round, dash: [8, 10]))
+                    .foregroundColor(Color.customAccent.opacity(0.4))
+                    .rotationEffect(.degrees(ringSpin ? 360 : 0))
+                    .animation(.linear(duration: 10).repeatForever(autoreverses: false), value: ringSpin)
+
+                VStack(spacing: 6) {
+                    Image(systemName: "figure.strengthtraining.traditional")
+                        .font(.system(size: 40, weight: .bold))
+                        .foregroundColor(.customAccent)
+                    Text("SPIN")
+                        .font(.caption.bold())
+                        .foregroundColor(.secondary)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func wheelSlice(for index: Int) -> some View {
+        WheelSliceShape(
+            startAngle: wheelStartAngle(for: index),
+            endAngle: wheelEndAngle(for: index),
+            innerRadiusRatio: 0.66,
+            outerRadiusExtension: 10
+        )
+        .fill(options[index].color.opacity(0.8))
+    }
+
+    private func wheelLabel(for index: Int, in size: CGSize) -> some View {
+        let point = wheelLabelPosition(for: index, in: size)
+        return Text(options[index].title)
+            .font(.caption2.bold())
+            .foregroundColor(.primary)
+            .position(point)
+    }
+
+    private func wheelStartAngle(for index: Int) -> Angle {
+        Angle(degrees: -90 + (Double(index) * wheelSegmentAngle))
+    }
+
+    private func wheelEndAngle(for index: Int) -> Angle {
+        Angle(degrees: -90 + (Double(index + 1) * wheelSegmentAngle))
+    }
+
+    private func wheelLabelPosition(for index: Int, in size: CGSize) -> CGPoint {
+        let radius = min(size.width, size.height) * 0.34
+        let angle = CGFloat((-90 + (Double(index) + 0.5) * wheelSegmentAngle) * .pi / 180)
+        let center = CGPoint(x: size.width / 2, y: size.height / 2)
+
+        return CGPoint(
+            x: center.x + CGFloat(cos(angle)) * radius,
+            y: center.y + CGFloat(sin(angle)) * radius
+        )
+    }
+
+    private var wheelSegmentAngle: Double {
+        360.0 / Double(options.count)
+    }
+
+    private var pointerView: some View {
+        Image(systemName: "triangle.fill")
+            .font(.system(size: 18, weight: .bold))
+            .foregroundColor(.customAccent)
+            .rotationEffect(.degrees(180))
+            .padding(.top, 6)
+    }
+
+    private func resultOverlay(option: WheelOption) -> some View {
+        ZStack {
+            Color.black.opacity(0.35)
+                .ignoresSafeArea()
+
+            VStack(spacing: 16) {
+                VStack(spacing: 16) {
+                    Circle()
+                        .fill(option.color.opacity(0.15))
+                        .frame(width: 90, height: 90)
+                        .overlay(
+                            Image(systemName: "trophy.fill")
+                                .font(.system(size: 40, weight: .bold))
+                                .foregroundColor(option.color)
+                        )
+
+                    Text(option.title)
+                        .font(.title.bold())
+                        .foregroundColor(.white)
+
+                    Text(option.subtitle)
+                        .font(.subheadline)
+                        .foregroundColor(.white.opacity(0.85))
+                        .multilineTextAlignment(.center)
+
+                    Button(action: {
+                        showResult = false
+                    }) {
+                        Text("關閉")
+                            .font(.headline.bold())
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 12)
+                            .background(option.color)
+                            .foregroundColor(.white)
+                            .cornerRadius(18)
+                    }
+                }
+                .padding(24)
+            }
+            .frame(maxWidth: 340)
+            .background(option.color.opacity(0.12))
+            .background(.ultraThinMaterial)
+            .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 28, style: .continuous)
+                    .stroke(option.color.opacity(0.25), lineWidth: 1)
+            )
+            .padding(.horizontal, 20)
+        }
+    }
 }
 
 struct CalendarSheetView: View {
