@@ -166,19 +166,19 @@ struct AnalysisView: View {
 
     private var summaryCardsSection: some View {
         let currentLogs = filteredLogs()
-        let currentMinutes = totalMinutes(in: currentLogs)
+        let currentTrainingDays = totalTrainingDays(in: currentLogs)
         let currentSets = totalSetCount(in: currentLogs)
         let previousLogs = previousLogs()
-        let previousMinutes = totalMinutes(in: previousLogs)
+        let previousTrainingDays = totalTrainingDays(in: previousLogs)
         let previousSets = totalSetCount(in: previousLogs)
 
         return LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 16) {
             summaryCard(
-                title: "\(selectedRange.title)訓練時長",
-                iconName: "schedule",
-                value: hoursString(fromMinutes: currentMinutes),
-                unit: "小時",
-                trend: trendLabel(current: currentMinutes, previous: previousMinutes)
+                title: "\(selectedRange.title)訓練天數",
+                iconName: "calendar",
+                value: "\(currentTrainingDays)",
+                unit: "天",
+                trend: trendLabel(current: currentTrainingDays, previous: previousTrainingDays)
             )
 
             summaryCard(
@@ -363,23 +363,14 @@ struct AnalysisView: View {
         return dataManager.trainingLogs.filter { interval.contains($0.date) }
     }
 
-    private func totalMinutes(in logs: [TrainingLog]) -> Int {
-        logs.reduce(0) { partial, log in
-            partial + log.sets.reduce(0) { sum, trainingSet in
-                sum + trainingSet.sets.reduce(0) { $0 + $1.time }
-            }
-        }
+    private func totalTrainingDays(in logs: [TrainingLog]) -> Int {
+        logs.filter { !$0.sets.isEmpty }.count
     }
 
     private func totalSetCount(in logs: [TrainingLog]) -> Int {
         logs.reduce(0) { partial, log in
             partial + log.sets.reduce(0) { $0 + $1.sets.count }
         }
-    }
-
-    private func hoursString(fromMinutes minutes: Int) -> String {
-        let hours = Double(minutes) / 60.0
-        return String(format: "%.1f", hours)
     }
 
     private func trendLabel(current: Int, previous: Int) -> TrendLabel? {
@@ -465,7 +456,7 @@ struct AnalysisView: View {
         var counts: [String: Int] = [:]
         for log in filteredLogs() {
             for set in log.sets {
-                counts[set.mainMuscle, default: 0] += set.sets.count
+                counts[muscleDistributionName(for: set), default: 0] += set.sets.count
             }
         }
 
@@ -491,9 +482,28 @@ struct AnalysisView: View {
             }
     }
 
+    private func muscleDistributionName(for trainingSet: TrainingSet) -> String {
+        if let subMuscle = trainingSet.subMuscle?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !subMuscle.isEmpty {
+            return subMuscle
+        }
+
+        let mainMuscle = trainingSet.mainMuscle.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !mainMuscle.isEmpty {
+            return mainMuscle
+        }
+
+        let equipmentMainPart = trainingSet.equipment.mainPart.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !equipmentMainPart.isEmpty {
+            return equipmentMainPart
+        }
+
+        return "未分類"
+    }
+
     private func insightText() -> String {
-        let current = totalMinutes(in: filteredLogs())
-        let previous = totalMinutes(in: previousLogs())
+        let current = totalTrainingDays(in: filteredLogs())
+        let previous = totalTrainingDays(in: previousLogs())
         guard previous > 0 else {
             return "目前的訓練資料還不多，持續紀錄就能看到更完整的趨勢。"
         }
@@ -502,9 +512,9 @@ struct AnalysisView: View {
         let currentLabel = selectedRange.title
         let previousLabel = selectedRange.previousTitle
         if change >= 0 {
-            return String(format: "你%@的訓練時長比%@提升了 %.0f%%。建議安排適度休息，讓強度穩定成長。", currentLabel, previousLabel, percentage)
+            return String(format: "你%@的訓練頻率比%@提升了 %.0f%%。目前節奏不錯，記得把恢復和強度一起安排好。", currentLabel, previousLabel, percentage)
         }
-        return String(format: "你%@的訓練時長比%@下降了 %.0f%%。可以挑一個重點部位，慢慢把節奏拉回來。", currentLabel, previousLabel, percentage)
+        return String(format: "你%@的訓練頻率比%@下降了 %.0f%%。可以先固定每週幾天開練，慢慢把節奏拉回來。", currentLabel, previousLabel, percentage)
     }
 }
 
