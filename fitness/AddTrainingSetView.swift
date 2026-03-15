@@ -15,12 +15,28 @@ struct AddTrainingSetView: View {
     @State private var lastSelectedEquipmentId: String?
     let date: Date
     private let preselectedNfcTagId: String?
+    private let preselectedEquipmentId: UUID?
+    private let preselectedMainMuscle: String?
+    private let preselectedSubMuscle: String?
+    private let preselectedVariant: String?
     @Environment(\.presentationMode) var presentationMode
     
-    init(dataManager: DataManager, date: Date, preselectedNfcTagId: String? = nil) {
+    init(
+        dataManager: DataManager,
+        date: Date,
+        preselectedNfcTagId: String? = nil,
+        preselectedEquipmentId: UUID? = nil,
+        preselectedMainMuscle: String? = nil,
+        preselectedSubMuscle: String? = nil,
+        preselectedVariant: String? = nil
+    ) {
         self.dataManager = dataManager
         self.date = date
         self.preselectedNfcTagId = preselectedNfcTagId
+        self.preselectedEquipmentId = preselectedEquipmentId
+        self.preselectedMainMuscle = preselectedMainMuscle
+        self.preselectedSubMuscle = preselectedSubMuscle
+        self.preselectedVariant = preselectedVariant
         
         let savedReps = UserDefaults.standard.integer(forKey: "lastEditedReps")
         _reps = State(initialValue: savedReps > 0 ? savedReps : 12)
@@ -91,6 +107,15 @@ struct AddTrainingSetView: View {
 
 
     private func prefillEquipmentIfNeeded() {
+        if let equipmentId = preselectedEquipmentId,
+           let equipment = dataManager.equipments.first(where: { $0.id == equipmentId }) {
+            selectedEquipment = equipment
+            selectedMainMuscle = preselectedMainMuscle ?? equipment.mainPart
+            selectedSubMuscle = validSubMuscle(from: preselectedSubMuscle, for: equipment)
+            selectedVariant = validVariant(from: preselectedVariant, for: equipment)
+            return
+        }
+
         if let tagId = preselectedNfcTagId, selectedEquipment == nil {
             if let equipment = dataManager.equipment(forNfcTagId: tagId) {
                 selectedEquipment = equipment
@@ -114,6 +139,33 @@ struct AddTrainingSetView: View {
                     selectedVariant = ""
                 }
             }
+        }
+    }
+
+    private func validSubMuscle(from value: String?, for equipment: Equipment) -> String {
+        guard let value = value?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !value.isEmpty,
+              equipment.muscleTags.contains(value) else {
+            return ""
+        }
+        return value
+    }
+
+    private func validVariant(from value: String?, for equipment: Equipment) -> String {
+        guard let value = value?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !value.isEmpty,
+              equipment.actions.contains(value) else {
+            return ""
+        }
+        return value
+    }
+
+    private func weightUnitLabel(for unit: WeightUnit) -> String {
+        switch unit {
+        case .kg:
+            return NSLocalizedString("公斤", comment: "")
+        case .lb:
+            return NSLocalizedString("磅", comment: "")
         }
     }
 
@@ -202,13 +254,13 @@ struct AddTrainingSetView: View {
                     .foregroundColor(Color.blue)
                 Menu {
                     ForEach(WeightUnit.allCases, id: \.self) { unit in
-                        Button(unit.rawValue) {
+                        Button(weightUnitLabel(for: unit)) {
                             weightUnit = unit
                             UserDefaults.standard.set(unit.rawValue, forKey: "lastUsedWeightUnit")
                         }
                     }
                 } label: {
-                    Text(weightUnit.rawValue)
+                    Text(weightUnitLabel(for: weightUnit))
                         .font(.system(size: 18, weight: .semibold))
                         .foregroundColor(.secondary)
                 }

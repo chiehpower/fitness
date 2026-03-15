@@ -7,6 +7,7 @@ struct TrainingLogView: View {
     @ObservedObject var dataManager: DataManager
     @State private var selectedDate = Date()
     @State private var showingAddSet = false
+    @State private var addSetPrefill: AddSetPrefill?
     @State private var showingCalendar = false
     @State private var showingWheel = false
     @State private var isEditingSets = false
@@ -43,7 +44,11 @@ struct TrainingLogView: View {
                 AddTrainingSetView(
                     dataManager: dataManager,
                     date: selectedDate,
-                    preselectedNfcTagId: appState.pendingNfcTagId
+                    preselectedNfcTagId: appState.pendingNfcTagId,
+                    preselectedEquipmentId: addSetPrefill?.equipmentId,
+                    preselectedMainMuscle: addSetPrefill?.mainMuscle,
+                    preselectedSubMuscle: addSetPrefill?.subMuscle,
+                    preselectedVariant: addSetPrefill?.variant
                 )
             } label: {
                 EmptyView()
@@ -53,6 +58,7 @@ struct TrainingLogView: View {
         .navigationBarHidden(true)
         .safeAreaInset(edge: .bottom) {
             Button(action: {
+                addSetPrefill = nil
                 showingAddSet = true
             }) {
                 HStack(spacing: 8) {
@@ -84,6 +90,7 @@ struct TrainingLogView: View {
         .onChange(of: appState.shouldShowAddTrainingSet) { _, newValue in
             if newValue {
                 selectedDate = Date()
+                addSetPrefill = nil
                 showingAddSet = true
             }
         }
@@ -204,9 +211,7 @@ struct TrainingLogView: View {
     }
 
     private func workoutCard(for group: EquipmentGroup) -> some View {
-        let sets = flattenedSets(for: group)
-        let primaryMuscle = group.equipment.mainPart
-        let secondaryMuscle = group.equipment.muscleTags.first ?? ""
+        let sections = trainingSetSections(for: group)
         return VStack(spacing: 0) {
             HStack(spacing: 16) {
                 cardThumbnail(for: group.equipment)
@@ -215,14 +220,6 @@ struct TrainingLogView: View {
                 VStack(alignment: .leading, spacing: 6) {
                     Text(group.equipment.name)
                         .font(.headline)
-                    HStack(spacing: 6) {
-                        if !primaryMuscle.isEmpty {
-                            tagView(text: primaryMuscle, color: colorForMuscle(primaryMuscle))
-                        }
-                        if !secondaryMuscle.isEmpty {
-                            tagView(text: secondaryMuscle, color: Color(UIColor.systemGray5))
-                        }
-                    }
                 }
 
                 Spacer(minLength: 0)
@@ -230,63 +227,92 @@ struct TrainingLogView: View {
             .padding(16)
 
             VStack(spacing: 0) {
-                HStack {
-                    tableHeader("組數")
-                    tableHeader("重量 (kg)")
-                    tableHeader("次數")
-                    tableHeader("時間", alignRight: true)
-                    if isEditingSets {
-                        tableHeader("", alignRight: true)
-                    }
-                }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 8)
-                .background(Color(UIColor.systemGray6))
-
-                ForEach(sets.indices, id: \.self) { index in
-                    let row = sets[index]
-                    HStack {
-                        tableCell("\(row.index)")
-                        tableCell("\(formatWeight(row.weight))")
-                        tableCell("\(row.reps)")
-                        tableCell(row.timeString, alignRight: true, isSecondary: true)
-                        if isEditingSets {
-                            Button(action: {
-                                deleteSet(row)
-                            }) {
-                                Image(systemName: "trash")
-                                    .font(.caption)
-                                    .foregroundColor(.red)
+                ForEach(Array(sections.enumerated()), id: \.element.id) { sectionIndex, section in
+                    VStack(spacing: 0) {
+                        VStack(alignment: .leading, spacing: 10) {
+                            HStack(alignment: .center, spacing: 8) {
+                                Text(section.displayTitle)
+                                    .font(.subheadline.bold())
+                                    .foregroundColor(.primary)
+                                sectionTags(for: section)
                             }
-                            .frame(maxWidth: .infinity, alignment: .trailing)
-                        }
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 10)
-                    .background(index == sets.count - 1 ? Color.customAccent.opacity(0.04) : Color.white)
-                    if index != sets.count - 1 {
-                        Divider().padding(.leading, 16)
-                    }
-                }
-            }
 
-            Button(action: {
-                showingAddSet = true
-            }) {
-                HStack(spacing: 6) {
-                    Image(systemName: "plus")
-                    Text("新增組數")
-                        .font(.caption.bold())
+                            HStack(spacing: 0) {
+                                tableHeader("組數")
+                                tableHeader(weightColumnTitle)
+                                tableHeader("次數")
+                                tableHeader("時間")
+                                if isEditingSets {
+                                    actionColumnHeader
+                                }
+                            }
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 8)
+                            .background(Color(UIColor.systemGray6))
+                            .cornerRadius(12)
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.top, 14)
+                        .padding(.bottom, 8)
+
+                        ForEach(section.rows.indices, id: \.self) { index in
+                            let row = section.rows[index]
+                            HStack(spacing: 0) {
+                                tableCell("\(row.index)")
+                                tableCell(displayWeight(row.weight))
+                                tableCell("\(row.reps)")
+                                tableCell(row.timeString, isSecondary: true)
+                                if isEditingSets {
+                                    Button(action: {
+                                        deleteSet(row)
+                                    }) {
+                                        Image(systemName: "trash")
+                                            .font(.caption)
+                                            .foregroundColor(.red)
+                                    }
+                                    .frame(width: actionColumnWidth)
+                                }
+                            }
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 10)
+                            .background(index == section.rows.count - 1 ? Color.customAccent.opacity(0.04) : Color.white)
+                            if index != section.rows.count - 1 {
+                                Divider().padding(.leading, 16)
+                            }
+                        }
+
+                        Button(action: {
+                            addSetPrefill = AddSetPrefill(
+                                equipmentId: group.equipment.id,
+                                mainMuscle: section.mainMuscle,
+                                subMuscle: section.subMuscle,
+                                variant: section.variant
+                            )
+                            showingAddSet = true
+                        }) {
+                            HStack(spacing: 6) {
+                                Image(systemName: "plus")
+                                Text("新增\(section.buttonTitleSuffix)組數")
+                                    .font(.caption.bold())
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 10)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .stroke(Color.gray.opacity(0.2), style: StrokeStyle(lineWidth: 1, dash: [4]))
+                            )
+                            .foregroundColor(.customAccent)
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.top, 8)
+                        .padding(.bottom, 16)
+                    }
+                    if sectionIndex != sections.count - 1 {
+                        Divider()
+                            .padding(.horizontal, 16)
+                    }
                 }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 10)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(Color.gray.opacity(0.2), style: StrokeStyle(lineWidth: 1, dash: [4]))
-                )
-                .foregroundColor(.customAccent)
             }
-            .padding(16)
         }
         .background(Color.white)
         .cornerRadius(20)
@@ -314,18 +340,30 @@ struct TrainingLogView: View {
         .clipped()
     }
 
-    private func tableHeader(_ text: String, alignRight: Bool = false) -> some View {
+    private func tableHeader(_ text: String) -> some View {
         Text(text)
             .font(.caption)
             .foregroundColor(.secondary)
-            .frame(maxWidth: .infinity, alignment: alignRight ? .trailing : .leading)
+            .frame(maxWidth: .infinity)
+            .multilineTextAlignment(.center)
     }
 
-    private func tableCell(_ text: String, alignRight: Bool = false, isSecondary: Bool = false) -> some View {
+    private func tableCell(_ text: String, isSecondary: Bool = false) -> some View {
         Text(text)
             .font(.footnote)
+            .monospacedDigit()
             .foregroundColor(isSecondary ? .secondary : .primary)
-            .frame(maxWidth: .infinity, alignment: alignRight ? .trailing : .leading)
+            .frame(maxWidth: .infinity)
+            .multilineTextAlignment(.center)
+    }
+
+    private var actionColumnHeader: some View {
+        Color.clear
+            .frame(width: actionColumnWidth)
+    }
+
+    private var actionColumnWidth: CGFloat {
+        28
     }
 
     private func tagView(text: String, color: Color) -> some View {
@@ -336,6 +374,16 @@ struct TrainingLogView: View {
             .background(color.opacity(0.12))
             .foregroundColor(color == Color(UIColor.systemGray5) ? .secondary : color)
             .cornerRadius(6)
+    }
+
+    @ViewBuilder
+    private func sectionTags(for section: TrainingSetSection) -> some View {
+        if !section.mainMuscle.isEmpty {
+            tagView(text: section.mainMuscle, color: colorForMuscle(section.mainMuscle))
+        }
+        if let subMuscle = section.subMuscle, !subMuscle.isEmpty {
+            tagView(text: subMuscle, color: colorForMuscle(subMuscle))
+        }
     }
 
     private func weekDates(for date: Date) -> [Date] {
@@ -389,23 +437,62 @@ struct TrainingLogView: View {
         return formatter.string(from: date)
     }
 
-    private func flattenedSets(for group: EquipmentGroup) -> [SetRow] {
-        var rows: [SetRow] = []
-        var index = 1
+    private func trainingSetSections(for group: EquipmentGroup) -> [TrainingSetSection] {
+        var sections: [TrainingSetSection] = []
+
         for trainingSet in group.trainingSets {
-            for (setIndex, set) in trainingSet.sets.enumerated() {
+            let identity = TrainingSetSectionIdentity(
+                mainMuscle: trainingSet.mainMuscle,
+                subMuscle: normalizedOptionalText(trainingSet.subMuscle),
+                variant: normalizedOptionalText(trainingSet.variant)
+            )
+
+            var rows: [SetRow] = []
+            for (index, set) in trainingSet.sets.enumerated() {
                 rows.append(SetRow(
-                    index: index,
+                    index: index + 1,
                     weight: set.weight,
                     reps: set.reps,
                     timeString: formatTime(set.time),
                     trainingSetId: trainingSet.id,
-                    setIndex: setIndex
+                    setIndex: index
                 ))
-                index += 1
+            }
+
+            if let existingIndex = sections.firstIndex(where: { $0.identity == identity }) {
+                let nextIndexStart = sections[existingIndex].rows.count + 1
+                let adjustedRows = rows.enumerated().map { rowIndex, row in
+                    SetRow(
+                        index: nextIndexStart + rowIndex,
+                        weight: row.weight,
+                        reps: row.reps,
+                        timeString: row.timeString,
+                        trainingSetId: row.trainingSetId,
+                        setIndex: row.setIndex
+                    )
+                }
+                sections[existingIndex].rows.append(contentsOf: adjustedRows)
+            } else {
+                sections.append(
+                    TrainingSetSection(
+                        identity: identity,
+                        mainMuscle: trainingSet.mainMuscle,
+                        subMuscle: normalizedOptionalText(trainingSet.subMuscle),
+                        variant: normalizedOptionalText(trainingSet.variant),
+                        rows: rows
+                    )
+                )
             }
         }
-        return rows
+
+        return sections
+    }
+
+    private func normalizedOptionalText(_ text: String?) -> String? {
+        guard let text = text?.trimmingCharacters(in: .whitespacesAndNewlines), !text.isEmpty else {
+            return nil
+        }
+        return text
     }
 
     private struct SetRow: Identifiable {
@@ -416,6 +503,42 @@ struct TrainingLogView: View {
         let timeString: String
         let trainingSetId: UUID
         let setIndex: Int
+    }
+
+    private struct TrainingSetSection: Identifiable {
+        let id = UUID()
+        let identity: TrainingSetSectionIdentity
+        let mainMuscle: String
+        let subMuscle: String?
+        let variant: String?
+        var rows: [SetRow]
+
+        var displayTitle: String {
+            if let variant {
+                return variant
+            }
+            if let subMuscle {
+                return subMuscle
+            }
+            return mainMuscle
+        }
+
+        var buttonTitleSuffix: String {
+            displayTitle == mainMuscle ? "" : displayTitle
+        }
+    }
+
+    private struct TrainingSetSectionIdentity: Hashable {
+        let mainMuscle: String
+        let subMuscle: String?
+        let variant: String?
+    }
+
+    private struct AddSetPrefill {
+        let equipmentId: UUID
+        let mainMuscle: String
+        let subMuscle: String?
+        let variant: String?
     }
 
     private func deleteSet(_ row: SetRow) {
@@ -501,7 +624,7 @@ struct TrainingLogView: View {
                                         .font(.subheadline)
                                     Spacer()
                                     Text("\(set.reps) 次")
-                                    Text("\(formatWeight(set.weight)) \(set.weightUnit)")
+                                    Text("\(displayWeight(set.weight)) \(preferredWeightUnitLabel)")
                                     if set.time > 0 {
                                         Text(formatTime(set.time))
                                     }
@@ -595,6 +718,29 @@ struct TrainingLogView: View {
 
     private func formatWeight(_ weight: Double) -> String {
         return String(format: "%.1f", weight)
+    }
+
+    private func displayWeight(_ weightInKg: Double) -> String {
+        let convertedWeight = dataManager.convertWeight(weightInKg, to: dataManager.preferredWeightUnit)
+        return formatWeight(convertedWeight)
+    }
+
+    private var preferredWeightUnitLabel: String {
+        switch dataManager.preferredWeightUnit {
+        case .kg:
+            return NSLocalizedString("公斤", comment: "")
+        case .lb:
+            return NSLocalizedString("磅", comment: "")
+        }
+    }
+
+    private var weightColumnTitle: String {
+        switch dataManager.preferredWeightUnit {
+        case .kg:
+            return NSLocalizedString("重量 (kg)", comment: "")
+        case .lb:
+            return NSLocalizedString("重量 (lb)", comment: "")
+        }
     }
 
     private func formatTime(_ minutes: Int) -> String {

@@ -3,6 +3,7 @@ import Foundation
 import UniformTypeIdentifiers
 
 struct SettingsView: View {
+    @EnvironmentObject private var appState: AppState
     @ObservedObject var dataManager: DataManager
     @State private var backupDocument: BackupDocument?
     @State private var showingExporter = false
@@ -11,17 +12,31 @@ struct SettingsView: View {
     @State private var showingImportConfirm = false
     @State private var showAlert = false
     @State private var alertMessage = ""
+    private let availableLanguages = LocalizationSupport.availableLanguages
 
     var body: some View {
         NavigationView {
             Form {
+                Section(header: Text("語言")) {
+                    HStack {
+                        Text("顯示語言")
+                        Spacer()
+                        Picker("", selection: $appState.languageCode) {
+                            ForEach(availableLanguages) { language in
+                                Text(language.displayName).tag(language.code)
+                            }
+                        }
+                        .pickerStyle(MenuPickerStyle())
+                    }
+                }
+
                 Section(header: Text("重量單位偏好")) {
                     HStack {
                         Text("顯示重量單位")
                         Spacer()
                         Picker("", selection: $dataManager.preferredWeightUnit) {
-                            Text("公斤").tag(WeightUnit.kg)
-                            Text("磅").tag(WeightUnit.lb)
+                            Text(unitLabel(for: .kg)).tag(WeightUnit.kg)
+                            Text(unitLabel(for: .lb)).tag(WeightUnit.lb)
                         }
                         .pickerStyle(MenuPickerStyle())
                     }
@@ -103,6 +118,9 @@ struct SettingsView: View {
                 Alert(title: Text("錯誤"), message: Text(alertMessage), dismissButton: .default(Text("確定")))
             }
         }
+        .onChange(of: dataManager.preferredWeightUnit) { _, _ in
+            dataManager.savePreferredWeightUnit()
+        }
     }
 
     private func backupFileName() -> String {
@@ -128,6 +146,15 @@ struct SettingsView: View {
         } catch {
             alertMessage = "匯入失敗，檔案格式不正確"
             showAlert = true
+        }
+    }
+
+    private func unitLabel(for unit: WeightUnit) -> String {
+        switch unit {
+        case .kg:
+            return NSLocalizedString("公斤", comment: "")
+        case .lb:
+            return NSLocalizedString("磅", comment: "")
         }
     }
 }

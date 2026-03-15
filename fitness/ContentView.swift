@@ -235,49 +235,21 @@ struct AnalysisView: View {
     }
 
     private var muscleDistributionSection: some View {
-        let segments = muscleDistributionSegments()
-        let totalPercentage = segments.reduce(0.0) { $0 + $1.percentage }
         return VStack(alignment: .leading, spacing: 16) {
             Text("部位訓練分佈")
                 .font(.headline)
 
-            HStack(spacing: 20) {
-                DonutChartView(segments: segments, accentColor: .customAccent)
-                    .frame(width: 120, height: 120)
-                    .overlay {
-                        VStack(spacing: 4) {
-                            Text("總計")
-                                .font(.caption2)
-                                .foregroundColor(.secondary)
-                            Text(totalPercentage == 0 ? "0%" : "100%")
-                                .font(.headline)
-                        }
-                    }
+            distributionCard(
+                title: "Body Part",
+                subtitle: "主部位分佈",
+                segments: bodyPartDistributionSegments()
+            )
 
-                VStack(alignment: .leading, spacing: 10) {
-                    if segments.isEmpty {
-                        Text("尚無訓練紀錄")
-                            .foregroundColor(.secondary)
-                            .font(.caption)
-                    } else {
-                        ForEach(segments) { segment in
-                            HStack {
-                                HStack(spacing: 8) {
-                                    Circle()
-                                        .fill(segment.color)
-                                        .frame(width: 8, height: 8)
-                                    Text(segment.name)
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
-                                }
-                                Spacer()
-                                Text(String(format: "%.0f%%", segment.percentage))
-                                    .font(.caption.bold())
-                            }
-                        }
-                    }
-                }
-            }
+            distributionCard(
+                title: "Muscle Group",
+                subtitle: "肌群分佈",
+                segments: muscleGroupDistributionSegments()
+            )
         }
         .padding(16)
         .background(Color(UIColor.systemBackground))
@@ -440,49 +412,162 @@ struct AnalysisView: View {
 
     private func weightTrendSubtitle() -> String {
         if let name = mostUsedEquipmentName(in: lastSixMonthsLogs()) {
-            return "\(name) · 過去 6 個月"
+            let format = NSLocalizedString("%@ · 過去 6 個月", comment: "")
+            return String(format: format, name)
         }
-        return "尚無器材資料"
+        return NSLocalizedString("尚無器材資料", comment: "")
     }
 
     private func weightHighlightText(_ value: Double) -> String {
         if value > 0 {
-            return String(format: "%.0fkg", value)
+            return String(format: "%.0f%@", displayWeight(value), preferredWeightUnitSuffix)
         }
-        return "--"
+        return NSLocalizedString("--", comment: "")
     }
 
-    private func muscleDistributionSegments() -> [MuscleSegment] {
+    private func displayWeight(_ weightInKg: Double) -> Double {
+        dataManager.convertWeight(weightInKg, to: dataManager.preferredWeightUnit)
+    }
+
+    private var preferredWeightUnitSuffix: String {
+        switch dataManager.preferredWeightUnit {
+        case .kg:
+            return "kg"
+        case .lb:
+            return "lb"
+        }
+    }
+
+    private func distributionCard(title: String, subtitle: String, segments: [MuscleSegment]) -> some View {
+        let totalPercentage = segments.reduce(0.0) { $0 + $1.percentage }
+        return VStack(alignment: .leading, spacing: 14) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title)
+                    .font(.subheadline.bold())
+                Text(subtitle)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+
+            HStack(alignment: .top, spacing: 20) {
+                DonutChartView(segments: segments, accentColor: .customAccent)
+                    .frame(width: 120, height: 120)
+                    .overlay {
+                        VStack(spacing: 4) {
+                            Text("總計")
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                            Text(totalPercentage == 0 ? "0%" : "100%")
+                                .font(.headline)
+                        }
+                    }
+
+                VStack(alignment: .leading, spacing: 10) {
+                    if segments.isEmpty {
+                        Text("尚無訓練紀錄")
+                            .foregroundColor(.secondary)
+                            .font(.caption)
+                    } else {
+                        ForEach(segments) { segment in
+                            HStack(alignment: .top) {
+                                HStack(spacing: 8) {
+                                    Circle()
+                                        .fill(segment.color)
+                                        .frame(width: 8, height: 8)
+                                        .padding(.top, 4)
+                                    Text(segment.name)
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                        .fixedSize(horizontal: false, vertical: true)
+                                }
+                                Spacer()
+                                Text(String(format: "%.0f%%", segment.percentage))
+                                    .font(.caption.bold())
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private func bodyPartDistributionSegments() -> [MuscleSegment] {
         var counts: [String: Int] = [:]
         for log in filteredLogs() {
             for set in log.sets {
-                counts[muscleDistributionName(for: set), default: 0] += set.sets.count
+                counts[bodyPartDistributionName(for: set), default: 0] += set.sets.count
             }
         }
 
+        return distributionSegments(from: counts)
+    }
+
+    private func muscleGroupDistributionSegments() -> [MuscleSegment] {
+        var counts: [String: Int] = [:]
+        for log in filteredLogs() {
+            for set in log.sets {
+                counts[muscleGroupDistributionName(for: set), default: 0] += set.sets.count
+            }
+        }
+
+        return distributionSegments(from: counts)
+    }
+
+    private func distributionSegments(from counts: [String: Int]) -> [MuscleSegment] {
         let total = counts.values.reduce(0, +)
         guard total > 0 else {
             return []
         }
 
-        let colors: [Color] = [
-            .customAccent,
-            Color(UIColor.systemIndigo),
-            Color(UIColor.systemOrange),
-            Color(UIColor.systemPink)
-        ]
+        let sortedCounts = counts.sorted { $0.value > $1.value }
 
-        return counts
-            .sorted { $0.value > $1.value }
-            .prefix(4)
+        return sortedCounts
             .enumerated()
             .map { index, item in
                 let percentage = Double(item.value) / Double(total) * 100
-                return MuscleSegment(name: item.key, percentage: percentage, color: colors[index % colors.count])
+                return MuscleSegment(
+                    name: item.key,
+                    percentage: percentage,
+                    color: distributionColor(for: index, total: sortedCounts.count)
+                )
             }
     }
 
-    private func muscleDistributionName(for trainingSet: TrainingSet) -> String {
+    private func distributionColor(for index: Int, total: Int) -> Color {
+        let palette: [Color] = [
+            Color(red: 0.73, green: 0.59, blue: 0.57),
+            Color(red: 0.61, green: 0.68, blue: 0.78),
+            Color(red: 0.77, green: 0.69, blue: 0.52),
+            Color(red: 0.59, green: 0.71, blue: 0.64),
+            Color(red: 0.69, green: 0.62, blue: 0.78),
+            Color(red: 0.80, green: 0.63, blue: 0.68),
+            Color(red: 0.55, green: 0.63, blue: 0.59),
+            Color(red: 0.84, green: 0.74, blue: 0.60),
+            Color(red: 0.63, green: 0.58, blue: 0.54),
+            Color(red: 0.67, green: 0.75, blue: 0.72),
+            Color(red: 0.75, green: 0.66, blue: 0.72),
+            Color(red: 0.57, green: 0.60, blue: 0.72)
+        ]
+
+        guard !palette.isEmpty else { return .customAccent }
+        return palette[index % palette.count]
+    }
+
+    private func bodyPartDistributionName(for trainingSet: TrainingSet) -> String {
+        let mainMuscle = trainingSet.mainMuscle.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !mainMuscle.isEmpty {
+            return mainMuscle
+        }
+
+        let equipmentMainPart = trainingSet.equipment.mainPart.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !equipmentMainPart.isEmpty {
+            return equipmentMainPart
+        }
+
+        return NSLocalizedString("未分類", comment: "")
+    }
+
+    private func muscleGroupDistributionName(for trainingSet: TrainingSet) -> String {
         if let subMuscle = trainingSet.subMuscle?.trimmingCharacters(in: .whitespacesAndNewlines),
            !subMuscle.isEmpty {
             return subMuscle
@@ -498,23 +583,25 @@ struct AnalysisView: View {
             return equipmentMainPart
         }
 
-        return "未分類"
+        return NSLocalizedString("未分類", comment: "")
     }
 
     private func insightText() -> String {
         let current = totalTrainingDays(in: filteredLogs())
         let previous = totalTrainingDays(in: previousLogs())
         guard previous > 0 else {
-            return "目前的訓練資料還不多，持續紀錄就能看到更完整的趨勢。"
+            return NSLocalizedString("目前的訓練資料還不多，持續紀錄就能看到更完整的趨勢。", comment: "")
         }
         let change = (Double(current) - Double(previous)) / Double(previous)
         let percentage = abs(change) * 100
         let currentLabel = selectedRange.title
         let previousLabel = selectedRange.previousTitle
         if change >= 0 {
-            return String(format: "你%@的訓練頻率比%@提升了 %.0f%%。目前節奏不錯，記得把恢復和強度一起安排好。", currentLabel, previousLabel, percentage)
+            let format = NSLocalizedString("你%@的訓練頻率比%@提升了 %.0f%%。目前節奏不錯，記得把恢復和強度一起安排好。", comment: "")
+            return String(format: format, currentLabel, previousLabel, percentage)
         }
-        return String(format: "你%@的訓練頻率比%@下降了 %.0f%%。可以先固定每週幾天開練，慢慢把節奏拉回來。", currentLabel, previousLabel, percentage)
+        let format = NSLocalizedString("你%@的訓練頻率比%@下降了 %.0f%%。可以先固定每週幾天開練，慢慢把節奏拉回來。", comment: "")
+        return String(format: format, currentLabel, previousLabel, percentage)
     }
 }
 
@@ -652,18 +739,18 @@ enum AnalysisRange: CaseIterable {
     var title: String {
         switch self {
         case .week:
-            return "本週"
+            return NSLocalizedString("本週", comment: "")
         case .month:
-            return "本月"
+            return NSLocalizedString("本月", comment: "")
         }
     }
 
     var previousTitle: String {
         switch self {
         case .week:
-            return "上週"
+            return NSLocalizedString("上週", comment: "")
         case .month:
-            return "上月"
+            return NSLocalizedString("上月", comment: "")
         }
     }
 
