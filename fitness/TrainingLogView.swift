@@ -94,6 +94,12 @@ struct TrainingLogView: View {
                 showingAddSet = true
             }
         }
+        .onChange(of: selectedDate) { _, _ in
+            isEditingSets = false
+        }
+        .onDisappear {
+            isEditingSets = false
+        }
     }
 
     private var headerView: some View {
@@ -717,7 +723,10 @@ struct TrainingLogView: View {
     }
 
     private func formatWeight(_ weight: Double) -> String {
-        return String(format: "%.1f", weight)
+        let formatter = NumberFormatter()
+        formatter.minimumFractionDigits = 0
+        formatter.maximumFractionDigits = 3
+        return formatter.string(from: NSNumber(value: weight)) ?? String(format: "%.3f", weight)
     }
 
     private func displayWeight(_ weightInKg: Double) -> String {

@@ -504,10 +504,10 @@ struct CustomNumberPad: View {
             }
         }
         
-        // 限制小數點後兩位
+        // 限制小數點後三位
         if value.contains(".") {
             let parts = value.split(separator: ".")
-            if parts.count > 1 && parts[1].count > 2 {
+            if parts.count > 1 && parts[1].count > 3 {
                 value = String(value.prefix(value.count - 1))
             }
         }
